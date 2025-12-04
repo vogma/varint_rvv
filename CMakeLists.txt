@@ -3,7 +3,7 @@ project(varintrvv VERSION 0.1 LANGUAGES C CXX)
 
 set(BUILD_EXAMPLE CACHE BOOL OFF)
 
-ADD_COMPILE_OPTIONS(-march=rv64gcv -mabi=lp64d -O3 -static -Wall -g)
+ADD_COMPILE_OPTIONS(-march=rv64gcv -mabi=lp64d -O3 -static -Werror -Wextra -g)
 
 # Add include directories
 include_directories(${PROJECT_SOURCE_DIR}/lib/include)
