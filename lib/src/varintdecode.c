@@ -11,6 +11,13 @@ static inline uint64_t createMask(vint8m1_t data, const size_t vl)
     return __riscv_vmv_x_s_u64m1_u64(mask_as_u64);                                                     // extract first element into scalar register
 }
 
+static inline uint64_t createMaskM8(vint8m8_t data, const size_t vl)
+{
+    vbool1_t mask = __riscv_vmslt_vx_i8m8_b1(data, 0, vl);                                             // a comparison < 0 with the data interpreted as a signed integer gives us a mask with all bytes which have the MSB set
+    vuint64m1_t mask_as_u64 = __riscv_vreinterpret_v_u8m1_u64m1(__riscv_vreinterpret_v_b1_u8m1(mask)); // Type conversion: b8 -> u8 -> u64
+    return __riscv_vmv_x_s_u64m1_u64(mask_as_u64);                                                     // extract first element into scalar register
+}
+
 static uint64_t masked_vbyte_read_group(const vuint8m1_t in, uint32_t *out,
                                         uint64_t mask, uint64_t *ints_read, const size_t vlmax_e8m1)
 {
@@ -84,49 +91,95 @@ static uint64_t masked_vbyte_read_group(const vuint8m1_t in, uint32_t *out,
     return consumed;
 }
 
-uint32_t varint_decode(uint8_t *input, uint32_t *output, size_t length)
+uint64_t varint_decode(uint8_t *input, uint32_t *output, size_t length)
 {
     const size_t vlmax_e8m1 = __riscv_vsetvlmax_e8m1();
 
-    vuint8m1_t varint_vec = __riscv_vle8_v_u8m1(input, vlmax_e8m1);
+    // vuint8m1_t varint_vec = __riscv_vle8_v_u8m1(input, vlmax_e8m1);
 
-    vint8m1_t vec_i8 = __riscv_vreinterpret_v_u8m1_i8m1(varint_vec);
+    // vint8m1_t vec_i8 = __riscv_vreinterpret_v_u8m1_i8m1(varint_vec);
 
-    uint64_t mask = createMask(vec_i8, vlmax_e8m1);
+    // uint64_t mask = createMask(vec_i8, vlmax_e8m1);
 
     uint64_t ints_read;
+
+    uint8_t data[16] = {0x08, 0x84, 0x02, 0x81, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+
+    vint8m1_t data_vec = __riscv_vle8_v_i8m1(data, vlmax_e8m1);
+
+    vbool8_t mask = __riscv_vmslt_vx_i8m1_b8(data_vec, 0, vlmax_e8m1); // a comparison < 0 with the data interpreted as a signed integer gives us a mask with all bytes which have the MSB set
+    vuint64m1_t mask_as_u64 = __riscv_vreinterpret_v_b8_u64m1(mask);   // Type conversion: b8 -> u8 -> u64
+
+    vuint64m1_t mask_as_u64_shifted = __riscv_vsll_vx_u64m1(mask_as_u64, 1, 1);
+
+    vbool8_t mask_shifted = __riscv_vreinterpret_v_u64m1_b8(mask_as_u64_shifted);
+
+    uint64_t mask_test = __riscv_vmv_x_s_u64m1_u64(mask_as_u64);               // extract first element into scalar register
+    uint64_t mask_test_shift = __riscv_vmv_x_s_u64m1_u64(mask_as_u64_shifted); // extract first element into scalar register
+
+    vbool8_t inverted_mask = __riscv_vreinterpret_v_u8m1_b8(__riscv_vnot_v_u8m1(__riscv_vreinterpret_v_b8_u8m1(mask), vlmax_e8m1));
+
+    vuint8m1_t index_vec = __riscv_viota_m_u8m1(inverted_mask, vlmax_e8m1);
+
+    uint8_t debug_vals[16];
+
+    __riscv_vse8_v_i8m1(debug_vals, data_vec, vlmax_e8m1);
+    printf("data : %02x %02x %02x %02x %02x %02x %02x %02x\n", debug_vals[0], debug_vals[1], debug_vals[2], debug_vals[3], debug_vals[4], debug_vals[5], debug_vals[6], debug_vals[7]);
+
+    //    uint8_t debug_vals[16];
+
+    __riscv_vse8_v_u8m1(debug_vals, index_vec, vlmax_e8m1);
+    printf("viota: %02x %02x %02x %02x %02x %02x %02x %02x\n", debug_vals[0], debug_vals[1], debug_vals[2], debug_vals[3], debug_vals[4], debug_vals[5], debug_vals[6], debug_vals[7]);
+
+    vuint8m1_t zeros = __riscv_vmv_v_x_u8m1(0, vlmax_e8m1);
+
+    vuint8m1_t mask_as_bytes = __riscv_vmerge_vxm_u8m1(zeros, 1, mask, vlmax_e8m1);
+
+    __riscv_vse8_v_u8m1(debug_vals, mask_as_bytes, vlmax_e8m1);
+
+    printf("mask : %02x %02x %02x %02x %02x %02x %02x %02x\n",
+           debug_vals[0], debug_vals[1], debug_vals[2], debug_vals[3],
+           debug_vals[4], debug_vals[5], debug_vals[6], debug_vals[7]);
+
+    // vint8m8_t vec_i8 = __riscv_vreinterpret_v_u8m8_i8m8(varint_vec);
+
+    // uint64_t mask = createMaskM8(vec_i8, vlmax_e8m8);
+
+    // printf("mask: %016x\n", mask);
+
+    // uint64_t mask_shifted = mask << 1;
+    // mask_shifted = ~mask_shifted;
+    // uint64_t second_bytes = mask & mask_shifted;
+
+    // uint64_t debug_vals[2];
+    printf("result: %016x\n", mask_test);
+    printf("result: %016x\n", mask_test_shift);
+
+    // printf("mask: %016x\n", second_bytes);
 
     if (length > 0)
     {
         length = 0;
     }
 
-    uint64_t consumed = masked_vbyte_read_group(varint_vec, output, mask, &ints_read, vlmax_e8m1);
+    uint64_t accu = 0;
 
-    uint8_t test[32];
-    // __riscv_vse8_v_u8m1(test, varint_vec, 16);
-    // for (int i = 0; i < 16; i++)
-    // {
-    //     printf("%d ", test[i]);
-    // }
-    // printf("\n");
+    // vuint8m1_t input_vec = __riscv_vget_v_u8m8_u8m1(varint_vec, 0);
 
-    varint_vec = __riscv_vslidedown_vx_u8m1(varint_vec, consumed, vlmax_e8m1);
-    mask >>= consumed;
-    output += ints_read;
-    input += consumed;
+    // uint64_t consumed = masked_vbyte_read_group(input_vec, output, mask, &ints_read, vlmax_e8m1);
 
-    consumed = masked_vbyte_read_group(varint_vec, output, mask, &ints_read, vlmax_e8m1);
+    // accu += ints_read;
 
-    __riscv_vse8_v_u8m1(test, varint_vec, 16);
+    // input_vec = __riscv_vslidedown_vx_u8m1(input_vec, consumed, vlmax_e8m1);
+    // mask >>= consumed;
+    // output += ints_read;
+    // input += consumed;
 
-    for (int i = 0; i < 16; i++)
-    {
-        printf("%d ", test[i]);
-    }
-    printf("\n");
+    // printf("mask: %016x\n",mask);
 
-    // printf("%ld %ld\n", consumed, ints_read);
+    // consumed = masked_vbyte_read_group(input_vec, output, mask, &ints_read, vlmax_e8m1);
 
-    return 4;
+    // accu += ints_read;
+
+    return accu;
 }

@@ -11,7 +11,7 @@ extern "C"
 #include "stdlib.h"
 #include "riscv_vector.h"
 
-    uint32_t varint_decode(uint8_t *input, uint32_t *output, size_t length);
+    uint64_t varint_decode(uint8_t *input, uint32_t *output, size_t length);
 
 #ifdef __cplusplus
 }
