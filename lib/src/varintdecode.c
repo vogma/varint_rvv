@@ -120,10 +120,18 @@ static inline uint64_t createSecondBytesMask(vint8m1_t data, size_t vl)
 }
 
 /**
+ * Number of varints that will be processed in the current loop iteration.
+ */
+static inline uint8_t getNumberOfVarints(vbool8_t varint_mask, size_t vl)
+{
+    return __riscv_vcpop_m_b8(varint_mask, vl);
+}
+
+/**
  * It's possible that the register splices a varint in half. So we can only decode complete varints in each vec.
  * This function returns the number of bytes that are occupied by complete varints in the vector register.
  */
-static inline uint32_t getCompleteVarintSize(vint8m1_t data, vbool8_t varint_mask, size_t vl)
+static inline uint8_t getCompleteVarintSize(vint8m1_t data, vbool8_t varint_mask, size_t vl)
 {
     // every lane gets an index
     vuint8m1_t index_vec = __riscv_vid_v_u8m1(vl);
@@ -159,9 +167,13 @@ uint64_t varint_decode(uint8_t *input, uint32_t *output, size_t length)
 
     vbool8_t inverted_mask = __riscv_vreinterpret_v_u8m1_b8(__riscv_vnot_v_u8m1(__riscv_vreinterpret_v_b8_u8m1(mask), vlmax_e8m1));
 
-    uint32_t number_of_bytes = getCompleteVarintSize(data_vec, mask, vlmax_e8m1);
+    uint8_t number_of_bytes = getCompleteVarintSize(data_vec, mask, vlmax_e8m1);
 
     printf("Number of Bytes: %d\n", number_of_bytes);
+
+    uint8_t number_of_varints = getNumberOfVarints(mask, vlmax_e8m1);
+
+    printf("Number of Varints: %d\n", number_of_varints);
 
     uint8_t debug_vals[16];
 
