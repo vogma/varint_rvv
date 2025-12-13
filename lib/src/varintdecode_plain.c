@@ -1,3 +1,6 @@
+#include "libvarintrvv.h"
+#include "utils.h"
+
 static uint64_t masked_vbyte_read_group(const vuint8m1_t in, uint32_t *out,
                                         uint64_t mask, uint64_t *ints_read, const size_t vlmax_e8m1)
 {

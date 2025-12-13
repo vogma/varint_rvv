@@ -1,12 +1,11 @@
 #include "libvarintrvv.h"
-#include "utils.h"
 
 /**
  * Just for debugging
  */
 static inline void dump_vbool8_as_bytes(const char *label, vbool8_t m, size_t vl)
 {
-    uint8_t tmp[256]; 
+    uint8_t tmp[256];
 
     vuint8m1_t zeros = __riscv_vmv_v_x_u8m1(0, vl);
     vuint8m1_t ones = __riscv_vmv_v_x_u8m1(1, vl);
@@ -99,12 +98,10 @@ uint64_t varint_decode(uint8_t *input, uint32_t *output, size_t length)
         vbool8_t inverted_mask = __riscv_vmnot_m_b8(mask, vlmax_e8m1);
 
         uint8_t number_of_bytes = getCompleteVarintSize(mask, vlmax_e8m1);
-
-        printf("Number of Bytes: %d\n", number_of_bytes);
-
         uint8_t number_of_varints = getNumberOfVarints(inverted_mask, vlmax_e8m1);
 
-        printf("Number of Varints: %d\n", number_of_varints);
+        // printf("Number of Bytes: %d\n", number_of_bytes);
+        // printf("Number of Varints: %d\n", number_of_varints);
 
         // first step: move all bytes with MSB==0 in their own 32-bit lane
         vuint8m1_t compressed_zero_msb = __riscv_vcompress_vm_u8m1(__riscv_vreinterpret_v_i8m1_u8m1(data_vec), inverted_mask, vlmax_e8m1);
