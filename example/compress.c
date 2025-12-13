@@ -17,7 +17,6 @@ int main(void)
     uint32_t decompressedData[51];
 
     // 14 45 765 6787 24 456 11111 2345 158385823 23465778 233455766 234 567586787 3453 345 2 45676 23 456 678 234 678 345
-
     uint64_t ints_read = varint_decode(compressedData, decompressedData, 51);
 
     for (uint64_t i = 0; i < ints_read; i++)
