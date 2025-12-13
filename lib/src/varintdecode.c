@@ -181,7 +181,7 @@ static inline uint8_t getNumberOfVarints(vbool8_t varint_mask, size_t vl)
  * It's possible that the register splices a varint in half. So we can only decode complete varints in each vec.
  * This function returns the number of bytes that are occupied by complete varints in the vector register.
  */
-static inline uint8_t getCompleteVarintSize(vint8m1_t data, vbool8_t varint_mask, size_t vl)
+static inline uint8_t getCompleteVarintSize(vbool8_t varint_mask, size_t vl)
 {
     // every lane gets an index
     vuint8m1_t index_vec = __riscv_vid_v_u8m1(vl);
@@ -199,25 +199,15 @@ static inline uint8_t getCompleteVarintSize(vint8m1_t data, vbool8_t varint_mask
 uint64_t varint_decode(uint8_t *input, uint32_t *output, size_t length)
 {
     const size_t vlmax_e8m1 = __riscv_vsetvlmax_e8m1();
-    const size_t vlmax_e64m1 = vlmax_e8m1 / 8;
 
-    // vuint8m1_t varint_vec = __riscv_vle8_v_u8m1(input, vlmax_e8m1);
-
-    // vint8m1_t vec_i8 = __riscv_vreinterpret_v_u8m1_i8m1(varint_vec);
-
-    // uint64_t mask = createMask(vec_i8, vlmax_e8m1);
-
-    uint64_t ints_read;
-
-    uint8_t data[16] = {0x88, 0x84, 0x02, 0x83, 0x81, 0x88, 0x84, 0x02, 0x81, 0x03, 0xF8, 0x84, 0x02, 0x81, 0x03, 0x80};
-
-    vint8m1_t data_vec = __riscv_vle8_v_i8m1(data, vlmax_e8m1);
+    vint8m1_t data_vec = __riscv_vle8_v_i8m1((int8_t *)input, vlmax_e8m1);
+    vuint8m1_t data_vec_u8 = __riscv_vreinterpret_v_i8m1_u8m1(data_vec);
 
     vbool8_t mask = __riscv_vmslt_vx_i8m1_b8(data_vec, 0, vlmax_e8m1); // a comparison < 0 with the data interpreted as a signed integer gives a mask with all bytes which have the MSB set
 
     vbool8_t inverted_mask = __riscv_vmnot_m_b8(mask, vlmax_e8m1);
 
-    uint8_t number_of_bytes = getCompleteVarintSize(data_vec, mask, vlmax_e8m1);
+    uint8_t number_of_bytes = getCompleteVarintSize(mask, vlmax_e8m1);
 
     printf("Number of Bytes: %d\n", number_of_bytes);
 
@@ -225,51 +215,11 @@ uint64_t varint_decode(uint8_t *input, uint32_t *output, size_t length)
 
     printf("Number of Varints: %d\n", number_of_varints);
 
-    uint8_t debug_vals[16];
-
-    vuint8m1_t zeros = __riscv_vmv_v_x_u8m1(0, vlmax_e8m1);
-
-    // uint64_t second_bytes = createSecondBytesMask(data_vec, vlmax_e8m1);
-
-    // vuint64m1_t sec_vec = __riscv_vmv_v_x_u64m1(second_bytes, vlmax_e64m1);
     vbool8_t second_bytes_mask = createSecondBytesMask(data_vec, vlmax_e8m1);
-    vbool8_t third_bytes_mask = createNBytesMask(second_bytes_mask, mask, vlmax_e8m1);
-    vbool8_t fourth_bytes_mask = createNBytesMask(third_bytes_mask, mask, vlmax_e8m1);
-    vbool8_t fifth_bytes_mask = createNBytesMask(fourth_bytes_mask, mask, vlmax_e8m1);
+
+    vuint8m1_t andtest = __riscv_vmerge_vxm_u8m1(data_vec_u8, 0, __riscv_vmnot_m_b8(second_bytes_mask, vlmax_e8m1), vlmax_e8m1);
 
     vbool8_t comp_mask_second_bytes = createCompressMask(second_bytes_mask, inverted_mask, 1, vlmax_e8m1);
-    vbool8_t comp_mask_third_bytes = createCompressMask(third_bytes_mask, inverted_mask, 2, vlmax_e8m1);
-    vbool8_t comp_mask_fourth_bytes = createCompressMask(fourth_bytes_mask, inverted_mask, 3, vlmax_e8m1);
-    vbool8_t comp_mask_fifth_bytes = createCompressMask(fifth_bytes_mask, inverted_mask, 4, vlmax_e8m1);
-
-    // uint64_t compress_mask = second_bytes << 1;
-    // compress_mask = ~compress_mask;
-
-    // vuint64m1_t compress_mask_vec = __riscv_vmv_v_x_u64m1(compress_mask, vlmax_e64m1);
-    // vbool8_t comp_mask_second_bytes = __riscv_vreinterpret_v_u64m1_b8(compress_mask_vec);
-
-    dump_vbool8_as_bytes("mask2", second_bytes_mask, vlmax_e8m1);
-    dump_vbool8_as_bytes("mask3", third_bytes_mask, vlmax_e8m1);
-    dump_vbool8_as_bytes("mask4", fourth_bytes_mask, vlmax_e8m1);
-    dump_vbool8_as_bytes("mask5", fifth_bytes_mask, vlmax_e8m1);
-
-    printf("\n");
-
-    __riscv_vse8_v_i8m1(debug_vals, data_vec, vlmax_e8m1);
-    printf("data : %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
-           debug_vals[0], debug_vals[1], debug_vals[2], debug_vals[3],
-           debug_vals[4], debug_vals[5], debug_vals[6], debug_vals[7],
-           debug_vals[8], debug_vals[9], debug_vals[10], debug_vals[11],
-           debug_vals[12], debug_vals[13], debug_vals[14], debug_vals[15]);
-    dump_vbool8_as_bytes("seco ", comp_mask_fifth_bytes, vlmax_e8m1); // sollte passen
-    printf("\n");
-
-    // vuint8m1_t andtest = scatter_via_gather(compressed, sec_mask, 2);
-
-    vuint8m1_t datau08 = __riscv_vreinterpret_v_i8m1_u8m1(data_vec);
-
-    vuint8m1_t andtest = __riscv_vmerge_vxm_u8m1(datau08, 0, __riscv_vmnot_m_b8(second_bytes_mask, vlmax_e8m1), vlmax_e8m1);
-
     andtest = __riscv_vcompress_vm_u8m1(andtest, comp_mask_second_bytes, vlmax_e8m1);
 
     vuint32m4_t second_bytes_in_32_byte_lanes = __riscv_vzext_vf4_u32m4(andtest, vlmax_e8m1);
@@ -285,9 +235,12 @@ uint64_t varint_decode(uint8_t *input, uint32_t *output, size_t length)
     zero_msb_bytes = __riscv_vor_vv_u32m4_m(has32blane_secondbyte, zero_msb_bytes, second_bytes_in_32_byte_lanes, vlmax_e8m1 / 4);
 
     // any third bytes in this reg?
+    vbool8_t third_bytes_mask = createNBytesMask(second_bytes_mask, mask, vlmax_e8m1);
     if (__riscv_vcpop_m_b8(third_bytes_mask, vlmax_e8m1) != 0)
     {
-        vuint8m1_t zerod_msb_bytes = __riscv_vmerge_vxm_u8m1(datau08, 0, __riscv_vmnot_m_b8(third_bytes_mask, vlmax_e8m1), vlmax_e8m1);
+        vbool8_t comp_mask_third_bytes = createCompressMask(third_bytes_mask, inverted_mask, 2, vlmax_e8m1);
+
+        vuint8m1_t zerod_msb_bytes = __riscv_vmerge_vxm_u8m1(data_vec_u8, 0, __riscv_vmnot_m_b8(third_bytes_mask, vlmax_e8m1), vlmax_e8m1);
 
         vuint8m1_t compressed_third_bytes = __riscv_vcompress_vm_u8m1(zerod_msb_bytes, comp_mask_third_bytes, vlmax_e8m1);
 
@@ -300,9 +253,12 @@ uint64_t varint_decode(uint8_t *input, uint32_t *output, size_t length)
 
         zero_msb_bytes = __riscv_vor_vv_u32m4_m(has32blane_thirdbyte, zero_msb_bytes, third_bytes_in_32_byte_lanes, vlmax_e8m1 / 4);
 
+        vbool8_t fourth_bytes_mask = createNBytesMask(third_bytes_mask, mask, vlmax_e8m1);
         if (__riscv_vcpop_m_b8(fourth_bytes_mask, vlmax_e8m1) != 0)
         {
-            zerod_msb_bytes = __riscv_vmerge_vxm_u8m1(datau08, 0, __riscv_vmnot_m_b8(fourth_bytes_mask, vlmax_e8m1), vlmax_e8m1);
+            vbool8_t comp_mask_fourth_bytes = createCompressMask(fourth_bytes_mask, inverted_mask, 3, vlmax_e8m1);
+
+            zerod_msb_bytes = __riscv_vmerge_vxm_u8m1(data_vec_u8, 0, __riscv_vmnot_m_b8(fourth_bytes_mask, vlmax_e8m1), vlmax_e8m1);
 
             vuint8m1_t compressed_fourth_bytes = __riscv_vcompress_vm_u8m1(zerod_msb_bytes, comp_mask_fourth_bytes, vlmax_e8m1);
 
@@ -315,9 +271,12 @@ uint64_t varint_decode(uint8_t *input, uint32_t *output, size_t length)
 
             zero_msb_bytes = __riscv_vor_vv_u32m4_m(has32blane_fourthbyte, zero_msb_bytes, fourth_bytes_in_32_byte_lanes, vlmax_e8m1 / 4);
 
+            vbool8_t fifth_bytes_mask = createNBytesMask(fourth_bytes_mask, mask, vlmax_e8m1);
             if (__riscv_vcpop_m_b8(fifth_bytes_mask, vlmax_e8m1) != 0)
             {
-                zerod_msb_bytes = __riscv_vmerge_vxm_u8m1(datau08, 0, __riscv_vmnot_m_b8(fifth_bytes_mask, vlmax_e8m1), vlmax_e8m1);
+                vbool8_t comp_mask_fifth_bytes = createCompressMask(fifth_bytes_mask, inverted_mask, 4, vlmax_e8m1);
+
+                zerod_msb_bytes = __riscv_vmerge_vxm_u8m1(data_vec_u8, 0, __riscv_vmnot_m_b8(fifth_bytes_mask, vlmax_e8m1), vlmax_e8m1);
 
                 vuint8m1_t compressed_fifth_bytes = __riscv_vcompress_vm_u8m1(zerod_msb_bytes, comp_mask_fifth_bytes, vlmax_e8m1);
 
@@ -332,19 +291,13 @@ uint64_t varint_decode(uint8_t *input, uint32_t *output, size_t length)
             }
         }
 
-        // vuint8m1_t andtest = __riscv_vand_vx_u8m1_m(sec_mask, __riscv_vreinterpret_v_i8m1_u8m1(data_vec), 0x00,vlmax_e8m1);
-        uint32_t result_test[16];
-        __riscv_vse32_v_u32m4(result_test, zero_msb_bytes, vlmax_e8m1 / 4);
-        printf("zero : %08x %d %d %08x\n",
-               result_test[0], result_test[1], result_test[2], result_test[3]);
+        __riscv_vse32_v_u32m4(output, zero_msb_bytes, vlmax_e8m1 / 4);
+        
     }
 
     if (length > 0)
     {
         length = 0;
     }
-
-    uint64_t accu = 0;
-
-    return accu;
+    return number_of_varints;
 }
