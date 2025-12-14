@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
 project(varintrvv VERSION 0.1 LANGUAGES C CXX)
 
 
-# cmake .. -DCMAKE_C_COMPILER=riscv64-unknown-linux-gnu-gcc      -DCMAKE_CXX_COMPILER=riscv64-unknown-linux-gnu-g++ -DBENCHMARK_ENABLE_WERROR=0      -DCMAKE_SYSTEM_NAME=Generic      -DCMAKE_SYSTEM_PROCESSOR=riscv && make -j 8
+# cmake .. -DCMAKE_C_COMPILER=riscv64-unknown-linux-gnu-gcc      -DCMAKE_CXX_COMPILER=riscv64-unknown-linux-gnu-g++ -DBENCHMARK_ENABLE_WERROR=0      -DCMAKE_SYSTEM_NAME=Generic   -DBUILD_BENCHMARK=1   -DCMAKE_SYSTEM_PROCESSOR=riscv && make -j 8
 
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "Do not build shared libraries")
 set(CMAKE_C_STANDARD 11)
@@ -45,5 +45,5 @@ endif()
 
 if(BUILD_BENCHMARK)
     add_executable(varint_benchmark ${PROJECT_SOURCE_DIR}/benchmark/benchmark.cc)
-    target_link_libraries(varint_benchmark PRIVATE benchmark::benchmark varintrvv pthread)
+    target_link_libraries(varint_benchmark PRIVATE benchmark::benchmark varintrvv pthread -static)
 endif()
