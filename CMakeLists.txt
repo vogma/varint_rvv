@@ -3,7 +3,7 @@ project(varintrvv VERSION 0.1 LANGUAGES C CXX)
 
 set(BUILD_EXAMPLE CACHE BOOL OFF)
 
-ADD_COMPILE_OPTIONS(-march=rv64gcv -mabi=lp64d -O3 -static -Wall -Werror -Wextra)
+ADD_COMPILE_OPTIONS(-march=rv64gcv -mabi=lp64d -O3 -static -Wall -Werror -Wextra -Wpedantic )
 
 # Add include directories
 include_directories(${PROJECT_SOURCE_DIR}/lib/include)
@@ -13,7 +13,6 @@ set(SOURCE_FILES
     ${PROJECT_SOURCE_DIR}/lib/src/varintdecode.c 
     )
 
-# Define the static library to be built with the specified source files
 add_library(varintrvv STATIC ${SOURCE_FILES})
 
 #build example executable
