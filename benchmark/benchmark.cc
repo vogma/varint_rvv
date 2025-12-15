@@ -19,14 +19,13 @@ static Dataset make_dataset(size_t input_bytes, uint32_t seed)
 {
     Dataset ds;
     ds.input.resize(input_bytes);
-    ds.output.resize(input_bytes); // upper bound; tighten if you know max count
+    ds.output.resize(input_bytes);
 
     std::mt19937 rng(seed);
     std::uniform_int_distribution<int> dist(0, 255);
     for (size_t i = 0; i < input_bytes; ++i)
         ds.input[i] = static_cast<uint8_t>(dist(rng));
 
-    // If you can: generate *valid varint streams* here instead of random bytes.
     return ds;
 }
 
@@ -38,7 +37,7 @@ static void BM_decode(benchmark::State &state)
 
     for (auto _ : state)
     {
-        
+
         size_t n = DecoderFn(ds.input.data(), ds.output.data(), ds.input.size());
 
         benchmark::DoNotOptimize(n);
@@ -47,7 +46,6 @@ static void BM_decode(benchmark::State &state)
     }
 
     state.SetBytesProcessed(int64_t(state.iterations()) * int64_t(ds.input.size()));
-    // Or SetItemsProcessed if `n` is stable/meaningful per-iteration.
 }
 
 // BENCHMARK_TEMPLATE(BM_decode, decode_varints_scalar)->RangeMultiplier(2)->Range(1<<10, 1<<20);
