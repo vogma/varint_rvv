@@ -33,13 +33,14 @@ include_directories(${PROJECT_SOURCE_DIR}/lib/include)
 # Specify source files
 set(SOURCE_FILES 
     ${PROJECT_SOURCE_DIR}/lib/src/varintdecode.c 
+    ${PROJECT_SOURCE_DIR}/lib/src/varint_encode.c
     )
 
 add_library(varintrvv STATIC ${SOURCE_FILES})
 
 #build example executable
 if(BUILD_EXAMPLE)
-    add_executable(example ${PROJECT_SOURCE_DIR}/example/compress.c)
+    add_executable(example ${PROJECT_SOURCE_DIR}/example/example.c)
     target_link_libraries(example varintrvv -static)
 endif()
 

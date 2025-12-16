@@ -83,116 +83,118 @@ static inline __attribute__((always_inline)) uint8_t getCompleteVarintSize(vbool
  * length: size of the varints in bytes
  * returns: uint64_t number of decompressed integers
  */
-uint64_t varint_decode(uint8_t *input, uint32_t *output, size_t length)
+size_t varint_decode(const uint8_t *input, size_t length, uint32_t *output)
 {
-    const size_t vlmax_e8m1 = __riscv_vsetvlmax_e8m1();
-
     size_t processed = 0;
 
-    while (length > vlmax_e8m1)
+    size_t vl;
+
+    while (length > 0)
     {
-        vint8m1_t data_vec = __riscv_vle8_v_i8m1((int8_t *)input, vlmax_e8m1);
+        vl = __riscv_vsetvl_e8m1(length);
+
+        vint8m1_t data_vec = __riscv_vle8_v_i8m1((int8_t *)input, vl);
         vuint8m1_t data_vec_u8 = __riscv_vreinterpret_v_i8m1_u8m1(data_vec);
 
-        vbool8_t mask = __riscv_vmslt_vx_i8m1_b8(data_vec, 0, vlmax_e8m1); // a comparison < 0 with the data interpreted as a signed integer gives a mask with all bytes which have the MSB set
-
-        uint8_t number_of_bytes = getCompleteVarintSize(mask, vlmax_e8m1);
+        vbool8_t inverted_mask = __riscv_vmsge_vx_i8m1_b8(data_vec, 0, vl);
+        uint8_t number_of_varints = getNumberOfVarints(inverted_mask, vl);
 
         // fast path. no continuation bits set
-        if (number_of_bytes == vlmax_e8m1)
+        if (number_of_varints == vl)
         {
-            __riscv_vse32_v_u32m4(output, __riscv_vzext_vf4_u32m4(data_vec_u8, vlmax_e8m1), vlmax_e8m1);
-            input += number_of_bytes;
-            length -= number_of_bytes;
-            output += number_of_bytes;
-            processed += number_of_bytes;
+            __riscv_vse32_v_u32m4(output, __riscv_vzext_vf4_u32m4(data_vec_u8, vl), vl);
+            input += number_of_varints;
+            length -= number_of_varints;
+            output += number_of_varints;
+            processed += number_of_varints;
         }
         else
         {
-            vbool8_t inverted_mask = __riscv_vmnot_m_b8(mask, vlmax_e8m1);
+            vbool8_t mask = __riscv_vmnot_m_b8(inverted_mask, vl);
 
-            uint8_t number_of_varints = getNumberOfVarints(inverted_mask, vlmax_e8m1);
+            uint8_t number_of_bytes = getCompleteVarintSize(mask, vl);
+            printf("bytes: %d varints: %d\n", number_of_bytes, number_of_varints);
 
             // first step: move all bytes with MSB==0 in their own 32-bit lane
-            vuint8m1_t compressed_zero_msb = __riscv_vcompress_vm_u8m1(__riscv_vreinterpret_v_i8m1_u8m1(data_vec), inverted_mask, vlmax_e8m1);
-            vuint32m4_t result_vec = __riscv_vzext_vf4_u32m4(compressed_zero_msb, vlmax_e8m1);
+            vuint8m1_t compressed_zero_msb = __riscv_vcompress_vm_u8m1(__riscv_vreinterpret_v_i8m1_u8m1(data_vec), inverted_mask, vl);
+            vuint32m4_t result_vec = __riscv_vzext_vf4_u32m4(compressed_zero_msb, vl);
 
             // create mask which selects all second bytes of multi-byte varints
-            vbool8_t second_bytes_mask = createSecondBytesMask(data_vec, vlmax_e8m1);
+            vbool8_t second_bytes_mask = createSecondBytesMask(data_vec, vl);
 
             // null all lanes which are not second byte lanes
-            vuint8m1_t multi_byte_varint_vec = __riscv_vmerge_vxm_u8m1(data_vec_u8, 0, __riscv_vmnot_m_b8(second_bytes_mask, vlmax_e8m1), vlmax_e8m1);
+            vuint8m1_t multi_byte_varint_vec = __riscv_vmerge_vxm_u8m1(data_vec_u8, 0, __riscv_vmnot_m_b8(second_bytes_mask, vl), vl);
 
-            vbool8_t comp_mask_second_bytes = createCompressMask(second_bytes_mask, inverted_mask, 1, vlmax_e8m1);
+            vbool8_t comp_mask_second_bytes = createCompressMask(second_bytes_mask, inverted_mask, 1, vl);
 
             // compress second bytes so they line up with the 32-bit lanes their corresponding first bytes
-            multi_byte_varint_vec = __riscv_vcompress_vm_u8m1(multi_byte_varint_vec, comp_mask_second_bytes, vlmax_e8m1);
+            multi_byte_varint_vec = __riscv_vcompress_vm_u8m1(multi_byte_varint_vec, comp_mask_second_bytes, vl);
 
-            vuint32m4_t second_bytes_in_32_byte_lanes = __riscv_vzext_vf4_u32m4(multi_byte_varint_vec, vlmax_e8m1);
-
-            // mask of continuation bit
-            second_bytes_in_32_byte_lanes = __riscv_vand_vx_u32m4(second_bytes_in_32_byte_lanes, 0x0000007F, vlmax_e8m1);
+            vuint32m4_t second_bytes_in_32_byte_lanes = __riscv_vzext_vf4_u32m4(multi_byte_varint_vec, vl);
 
             // we have to shift the result vec left by 7 to integrate the second bytes. But only the lanes actually containing second bytes
-            vbool8_t has32blane_secondbyte = __riscv_vmsne_vx_u32m4_b8(second_bytes_in_32_byte_lanes, 0, vlmax_e8m1);
+            vbool8_t has32blane_secondbyte = __riscv_vmsne_vx_u32m4_b8(second_bytes_in_32_byte_lanes, 0, vl);
 
-            result_vec = __riscv_vsll_vx_u32m4_m(has32blane_secondbyte, result_vec, 7, vlmax_e8m1);
-            result_vec = __riscv_vor_vv_u32m4_m(has32blane_secondbyte, result_vec, second_bytes_in_32_byte_lanes, vlmax_e8m1);
+            // mask of continuation bit
+            second_bytes_in_32_byte_lanes = __riscv_vand_vx_u32m4(second_bytes_in_32_byte_lanes, 0x7F, vl);
+
+            result_vec = __riscv_vsll_vx_u32m4_m(has32blane_secondbyte, result_vec, 7, vl);
+            result_vec = __riscv_vor_vv_u32m4_m(has32blane_secondbyte, result_vec, second_bytes_in_32_byte_lanes, vl);
 
             // any third bytes in this reg?
-            vbool8_t third_bytes_mask = createNBytesMask(second_bytes_mask, mask, vlmax_e8m1);
-            if (__riscv_vcpop_m_b8(third_bytes_mask, vlmax_e8m1) != 0)
+            vbool8_t third_bytes_mask = createNBytesMask(second_bytes_mask, mask, vl);
+            if (__riscv_vcpop_m_b8(third_bytes_mask, vl) != 0)
             {
-                vbool8_t comp_mask_third_bytes = createCompressMask(third_bytes_mask, inverted_mask, 2, vlmax_e8m1);
+                vbool8_t comp_mask_third_bytes = createCompressMask(third_bytes_mask, inverted_mask, 2, vl);
 
-                vuint8m1_t zerod_msb_bytes = __riscv_vmerge_vxm_u8m1(data_vec_u8, 0, __riscv_vmnot_m_b8(third_bytes_mask, vlmax_e8m1), vlmax_e8m1);
+                vuint8m1_t zerod_msb_bytes = __riscv_vmerge_vxm_u8m1(data_vec_u8, 0, __riscv_vmnot_m_b8(third_bytes_mask, vl), vl);
 
-                vuint8m1_t compressed_third_bytes = __riscv_vcompress_vm_u8m1(zerod_msb_bytes, comp_mask_third_bytes, vlmax_e8m1);
+                vuint8m1_t compressed_third_bytes = __riscv_vcompress_vm_u8m1(zerod_msb_bytes, comp_mask_third_bytes, vl);
 
-                vuint32m4_t third_bytes_in_32_byte_lanes = __riscv_vzext_vf4_u32m4(compressed_third_bytes, vlmax_e8m1);
-                third_bytes_in_32_byte_lanes = __riscv_vand_vx_u32m4(third_bytes_in_32_byte_lanes, 0x0000007F, vlmax_e8m1);
+                vuint32m4_t third_bytes_in_32_byte_lanes = __riscv_vzext_vf4_u32m4(compressed_third_bytes, vl);
+                third_bytes_in_32_byte_lanes = __riscv_vand_vx_u32m4(third_bytes_in_32_byte_lanes, 0x0000007F, vl);
 
-                vbool8_t has32blane_thirdbyte = __riscv_vmsne_vx_u32m4_b8(third_bytes_in_32_byte_lanes, 0, vlmax_e8m1);
+                vbool8_t has32blane_thirdbyte = __riscv_vmsne_vx_u32m4_b8(third_bytes_in_32_byte_lanes, 0, vl);
 
-                result_vec = __riscv_vsll_vx_u32m4_m(has32blane_thirdbyte, result_vec, 7, vlmax_e8m1);
+                result_vec = __riscv_vsll_vx_u32m4_m(has32blane_thirdbyte, result_vec, 7, vl);
 
-                result_vec = __riscv_vor_vv_u32m4_m(has32blane_thirdbyte, result_vec, third_bytes_in_32_byte_lanes, vlmax_e8m1);
+                result_vec = __riscv_vor_vv_u32m4_m(has32blane_thirdbyte, result_vec, third_bytes_in_32_byte_lanes, vl);
 
-                vbool8_t fourth_bytes_mask = createNBytesMask(third_bytes_mask, mask, vlmax_e8m1);
-                if (__riscv_vcpop_m_b8(fourth_bytes_mask, vlmax_e8m1) != 0)
+                vbool8_t fourth_bytes_mask = createNBytesMask(third_bytes_mask, mask, vl);
+                if (__riscv_vcpop_m_b8(fourth_bytes_mask, vl) != 0)
                 {
-                    vbool8_t comp_mask_fourth_bytes = createCompressMask(fourth_bytes_mask, inverted_mask, 3, vlmax_e8m1);
+                    vbool8_t comp_mask_fourth_bytes = createCompressMask(fourth_bytes_mask, inverted_mask, 3, vl);
 
-                    zerod_msb_bytes = __riscv_vmerge_vxm_u8m1(data_vec_u8, 0, __riscv_vmnot_m_b8(fourth_bytes_mask, vlmax_e8m1), vlmax_e8m1);
+                    zerod_msb_bytes = __riscv_vmerge_vxm_u8m1(data_vec_u8, 0, __riscv_vmnot_m_b8(fourth_bytes_mask, vl), vl);
 
-                    vuint8m1_t compressed_fourth_bytes = __riscv_vcompress_vm_u8m1(zerod_msb_bytes, comp_mask_fourth_bytes, vlmax_e8m1);
+                    vuint8m1_t compressed_fourth_bytes = __riscv_vcompress_vm_u8m1(zerod_msb_bytes, comp_mask_fourth_bytes, vl);
 
-                    vuint32m4_t fourth_bytes_in_32_byte_lanes = __riscv_vzext_vf4_u32m4(compressed_fourth_bytes, vlmax_e8m1);
-                    fourth_bytes_in_32_byte_lanes = __riscv_vand_vx_u32m4(fourth_bytes_in_32_byte_lanes, 0x0000007F, vlmax_e8m1);
+                    vuint32m4_t fourth_bytes_in_32_byte_lanes = __riscv_vzext_vf4_u32m4(compressed_fourth_bytes, vl);
+                    fourth_bytes_in_32_byte_lanes = __riscv_vand_vx_u32m4(fourth_bytes_in_32_byte_lanes, 0x0000007F, vl);
 
-                    vbool8_t has32blane_fourthbyte = __riscv_vmsne_vx_u32m4_b8(fourth_bytes_in_32_byte_lanes, 0, vlmax_e8m1);
+                    vbool8_t has32blane_fourthbyte = __riscv_vmsne_vx_u32m4_b8(fourth_bytes_in_32_byte_lanes, 0, vl);
 
-                    result_vec = __riscv_vsll_vx_u32m4_m(has32blane_fourthbyte, result_vec, 7, vlmax_e8m1);
+                    result_vec = __riscv_vsll_vx_u32m4_m(has32blane_fourthbyte, result_vec, 7, vl);
 
-                    result_vec = __riscv_vor_vv_u32m4_m(has32blane_fourthbyte, result_vec, fourth_bytes_in_32_byte_lanes, vlmax_e8m1);
+                    result_vec = __riscv_vor_vv_u32m4_m(has32blane_fourthbyte, result_vec, fourth_bytes_in_32_byte_lanes, vl);
 
-                    vbool8_t fifth_bytes_mask = createNBytesMask(fourth_bytes_mask, mask, vlmax_e8m1);
-                    if (__riscv_vcpop_m_b8(fifth_bytes_mask, vlmax_e8m1) != 0)
+                    vbool8_t fifth_bytes_mask = createNBytesMask(fourth_bytes_mask, mask, vl);
+                    if (__riscv_vcpop_m_b8(fifth_bytes_mask, vl) != 0)
                     {
-                        vbool8_t comp_mask_fifth_bytes = createCompressMask(fifth_bytes_mask, inverted_mask, 4, vlmax_e8m1);
+                        vbool8_t comp_mask_fifth_bytes = createCompressMask(fifth_bytes_mask, inverted_mask, 4, vl);
 
-                        zerod_msb_bytes = __riscv_vmerge_vxm_u8m1(data_vec_u8, 0, __riscv_vmnot_m_b8(fifth_bytes_mask, vlmax_e8m1), vlmax_e8m1);
+                        zerod_msb_bytes = __riscv_vmerge_vxm_u8m1(data_vec_u8, 0, __riscv_vmnot_m_b8(fifth_bytes_mask, vl), vl);
 
-                        vuint8m1_t compressed_fifth_bytes = __riscv_vcompress_vm_u8m1(zerod_msb_bytes, comp_mask_fifth_bytes, vlmax_e8m1);
+                        vuint8m1_t compressed_fifth_bytes = __riscv_vcompress_vm_u8m1(zerod_msb_bytes, comp_mask_fifth_bytes, vl);
 
-                        vuint32m4_t fifth_bytes_in_32_byte_lanes = __riscv_vzext_vf4_u32m4(compressed_fifth_bytes, vlmax_e8m1);
-                        fifth_bytes_in_32_byte_lanes = __riscv_vand_vx_u32m4(fifth_bytes_in_32_byte_lanes, 0x0000007F, vlmax_e8m1);
+                        vuint32m4_t fifth_bytes_in_32_byte_lanes = __riscv_vzext_vf4_u32m4(compressed_fifth_bytes, vl);
+                        fifth_bytes_in_32_byte_lanes = __riscv_vand_vx_u32m4(fifth_bytes_in_32_byte_lanes, 0x0000007F, vl);
 
-                        vbool8_t has32blane_fifthbyte = __riscv_vmsne_vx_u32m4_b8(fifth_bytes_in_32_byte_lanes, 0, vlmax_e8m1);
+                        vbool8_t has32blane_fifthbyte = __riscv_vmsne_vx_u32m4_b8(fifth_bytes_in_32_byte_lanes, 0, vl);
 
-                        result_vec = __riscv_vsll_vx_u32m4_m(has32blane_fifthbyte, result_vec, 7, vlmax_e8m1);
+                        result_vec = __riscv_vsll_vx_u32m4_m(has32blane_fifthbyte, result_vec, 7, vl);
 
-                        result_vec = __riscv_vor_vv_u32m4_m(has32blane_fifthbyte, result_vec, fifth_bytes_in_32_byte_lanes, vlmax_e8m1);
+                        result_vec = __riscv_vor_vv_u32m4_m(has32blane_fifthbyte, result_vec, fifth_bytes_in_32_byte_lanes, vl);
                     }
                 }
             }
@@ -203,10 +205,8 @@ uint64_t varint_decode(uint8_t *input, uint32_t *output, size_t length)
             input += number_of_bytes;
             length -= number_of_bytes;
             output += number_of_varints;
-
             processed += number_of_varints;
         }
     }
-
     return processed;
 }

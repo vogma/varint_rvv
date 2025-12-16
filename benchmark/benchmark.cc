@@ -6,7 +6,7 @@
 
 extern "C"
 {
-    uint64_t varint_decode(uint8_t *input, uint32_t *output, size_t length);
+    size_t varint_decode(const uint8_t *input, size_t length, uint32_t *output);
 }
 
 struct Dataset
@@ -37,8 +37,7 @@ static void BM_decode(benchmark::State &state)
 
     for (auto _ : state)
     {
-
-        size_t n = DecoderFn(ds.input.data(), ds.output.data(), ds.input.size());
+        size_t n = DecoderFn(ds.input.data(),ds.input.size(), ds.output.data());
 
         benchmark::DoNotOptimize(n);
         benchmark::DoNotOptimize(ds.output.data());
