@@ -1,7 +1,18 @@
 #include "libvarintrvv.h"
 #include "utils.h"
 
-static uint64_t masked_vbyte_read_group(const vuint8m1_t in, uint32_t *out,
+static inline __attribute__((always_inline)) uint64_t create_mask(const vuint8m1_t varint_vec, const size_t vlmax_e8m1, const size_t length)
+{
+    vint8m1_t vec_i8 = __riscv_vreinterpret_v_u8m1_i8m1(varint_vec);
+
+    vbool8_t mask = __riscv_vmslt_vx_i8m1_b8(vec_i8, 0, vlmax_e8m1);
+
+    vuint8m1_t mask_as_u8 = __riscv_vreinterpret_v_b8_u8m1(mask);
+    vuint64m1_t mask_as_u64 = __riscv_vreinterpret_v_u8m1_u64m1(mask_as_u8);
+    return __riscv_vmv_x_s_u64m1_u64(mask_as_u64);
+}
+
+static inline __attribute__((always_inline)) uint64_t masked_vbyte_read_group(const vuint8m1_t in, uint32_t *out,
                                         uint64_t mask, uint64_t *ints_read, const size_t vlmax_e8m1)
 {
 
@@ -72,4 +83,30 @@ static uint64_t masked_vbyte_read_group(const vuint8m1_t in, uint32_t *out,
     __riscv_vse32_v_u32m1(out, __riscv_vreinterpret_v_u8m1_u32m1(result), 2);
 
     return consumed;
+}
+
+size_t varint_decode_masked_vbyte(const uint8_t *input, size_t length, uint32_t *output)
+{
+    const size_t vlmax_e8m1 = 16; //__riscv_vsetvlmax_e8m1();
+    uint64_t ints_read = 0;
+    uint64_t ints_processed=0;
+    uint64_t consumed = 0;
+
+    while (length >= 16)
+    {
+        const vuint8m1_t varint_vec = __riscv_vle8_v_u8m1(input, vlmax_e8m1);
+        const uint64_t mask = create_mask(varint_vec, vlmax_e8m1, length);
+        uint64_t consumed = masked_vbyte_read_group(varint_vec, output, mask, &ints_read, vlmax_e8m1);
+
+        length -= consumed;
+        input += consumed;
+        output += ints_read;
+        ints_processed += ints_read;
+    }
+    if (length > 0)
+    {
+        ints_processed += varint_decode_scalar(input, length, output);
+    }
+
+    return ints_processed;
 }

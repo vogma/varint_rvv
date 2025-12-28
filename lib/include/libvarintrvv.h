@@ -10,8 +10,9 @@ extern "C"
 #include <stdio.h>
 #include "riscv_vector.h"
 
-    size_t varint_decode(const uint8_t *input, size_t length, uint32_t *output);
-    // uint64_t varint_decode_scalar(uint8_t *input, uint32_t *output, size_t length);
+    size_t varint_decode_m1(const uint8_t *input, size_t length, uint32_t *output);
+    size_t varint_decode_masked_vbyte(const uint8_t *input, size_t length, uint32_t *output);
+    size_t varint_decode_scalar(const uint8_t *input, int length, uint32_t *output);
     size_t vbyte_encode(const uint32_t *in, size_t length, uint8_t *bout);
 
 #ifdef __cplusplus

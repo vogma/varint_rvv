@@ -3,10 +3,12 @@
 #include <cstdint>
 #include <vector>
 #include <random>
+#include <limits.h>
 
 extern "C"
 {
-    size_t varint_decode(const uint8_t *input, size_t length, uint32_t *output);
+    size_t varint_decode_scalar(const uint8_t *input, int length, uint32_t *output);
+    size_t varint_decode_m1(const uint8_t *input, size_t length, uint32_t *output);
 }
 
 struct Dataset
@@ -37,7 +39,7 @@ static void BM_decode(benchmark::State &state)
 
     for (auto _ : state)
     {
-        size_t n = DecoderFn(ds.input.data(),ds.input.size(), ds.output.data());
+        size_t n = DecoderFn(ds.input.data(), ds.input.size(), ds.output.data());
 
         benchmark::DoNotOptimize(n);
         benchmark::DoNotOptimize(ds.output.data());
@@ -47,7 +49,7 @@ static void BM_decode(benchmark::State &state)
     state.SetBytesProcessed(int64_t(state.iterations()) * int64_t(ds.input.size()));
 }
 
-// BENCHMARK_TEMPLATE(BM_decode, decode_varints_scalar)->RangeMultiplier(2)->Range(1<<10, 1<<20);
-BENCHMARK_TEMPLATE(BM_decode, varint_decode)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+BENCHMARK_TEMPLATE(BM_decode, varint_decode_scalar)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+BENCHMARK_TEMPLATE(BM_decode, varint_decode_m1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
 
 BENCHMARK_MAIN();

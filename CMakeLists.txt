@@ -12,6 +12,7 @@ set(BENCHMARK_ENABLE_GTEST_TESTS OFF CACHE BOOL "Disable Benchmark's GTest tests
 set(BUILD_EXAMPLE CACHE BOOL OFF)
 set(BUILD_BENCHMARK CACHE BOOL OFF)
 
+# ADD_COMPILE_OPTIONS(-march=rv64imafdcv_zicbom_zicboz_zicntr_zicond_zicsr_zifencei_zihintpause_zihpm_zfh_zfhmin_zca_zcd_zba_zbb_zbc_zbs_zkt_zve32f_zve32x_zve64d_zve64f_zve64x_zvfh_zvfhmin_zvkt_sscofpmf_sstc_svinval_svnapot_svpbmt -mabi=lp64d -O3 -static)
 ADD_COMPILE_OPTIONS(-march=rv64gcv -mabi=lp64d -O3 -static)
 
 add_subdirectory(submodules/google-benchmark)
@@ -34,6 +35,8 @@ include_directories(${PROJECT_SOURCE_DIR}/lib/include)
 set(SOURCE_FILES 
     ${PROJECT_SOURCE_DIR}/lib/src/varintdecode.c 
     ${PROJECT_SOURCE_DIR}/lib/src/varint_encode.c
+    ${PROJECT_SOURCE_DIR}/lib/src/varint_decode_scalar.c
+    ${PROJECT_SOURCE_DIR}/lib/src/varint_decode_plain.c
     )
 
 add_library(varintrvv STATIC ${SOURCE_FILES})
