@@ -33,7 +33,7 @@ include_directories(${PROJECT_SOURCE_DIR}/lib/include)
 
 # Specify source files
 set(SOURCE_FILES 
-    ${PROJECT_SOURCE_DIR}/lib/src/varintdecode.c 
+    ${PROJECT_SOURCE_DIR}/lib/src/varint_decode.c 
     ${PROJECT_SOURCE_DIR}/lib/src/varint_encode.c
     ${PROJECT_SOURCE_DIR}/lib/src/varint_decode_scalar.c
     ${PROJECT_SOURCE_DIR}/lib/src/varint_decode_plain.c

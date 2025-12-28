@@ -9,6 +9,8 @@ extern "C"
 {
     size_t varint_decode_scalar(const uint8_t *input, int length, uint32_t *output);
     size_t varint_decode_m1(const uint8_t *input, size_t length, uint32_t *output);
+    size_t varint_decode_masked_vbyte(const uint8_t *input, size_t length, uint32_t *output);
+    size_t vbyte_encode(const uint32_t *in, size_t length, uint8_t *bout);
 }
 
 struct Dataset
@@ -23,10 +25,20 @@ static Dataset make_dataset(size_t input_bytes, uint32_t seed)
     ds.input.resize(input_bytes);
     ds.output.resize(input_bytes);
 
+    std::vector<uint32_t> data(input_bytes);
+
+    std::vector<uint8_t> varints(input_bytes*5);
+
     std::mt19937 rng(seed);
-    std::uniform_int_distribution<int> dist(0, 255);
+    std::uniform_int_distribution<int> dist(0, INT_MAX);
     for (size_t i = 0; i < input_bytes; ++i)
-        ds.input[i] = static_cast<uint8_t>(dist(rng));
+        data[i] = static_cast<uint8_t>(dist(rng));
+
+    vbyte_encode( data.data(), input_bytes, varints.data());
+
+    varints.resize(input_bytes);
+
+    ds.input = std::move(varints);
 
     return ds;
 }
@@ -51,5 +63,6 @@ static void BM_decode(benchmark::State &state)
 
 BENCHMARK_TEMPLATE(BM_decode, varint_decode_scalar)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
 BENCHMARK_TEMPLATE(BM_decode, varint_decode_m1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+BENCHMARK_TEMPLATE(BM_decode, varint_decode_masked_vbyte)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
 
 BENCHMARK_MAIN();

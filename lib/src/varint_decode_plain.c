@@ -13,7 +13,7 @@ static inline __attribute__((always_inline)) uint64_t create_mask(const vuint8m1
 }
 
 static inline __attribute__((always_inline)) uint64_t masked_vbyte_read_group(const vuint8m1_t in, uint32_t *out,
-                                        uint64_t mask, uint64_t *ints_read, const size_t vlmax_e8m1)
+                                                                              uint64_t mask, uint64_t *ints_read, const size_t vlmax_e8m1)
 {
 
     // fast path, all 16 bytes contain separate integers < 128
@@ -89,7 +89,7 @@ size_t varint_decode_masked_vbyte(const uint8_t *input, size_t length, uint32_t 
 {
     const size_t vlmax_e8m1 = 16; //__riscv_vsetvlmax_e8m1();
     uint64_t ints_read = 0;
-    uint64_t ints_processed=0;
+    uint64_t ints_processed = 0;
     uint64_t consumed = 0;
 
     while (length >= 16)
