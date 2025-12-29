@@ -3,7 +3,7 @@
 #include <limits.h>
 #include <stdlib.h>
 
-#define N 1200000
+#define N 200
 int main(void)
 {
 
@@ -31,11 +31,9 @@ int main(void)
     printf("length %ld \n", length);
 
     // size_t ints_read = varint_decode_m1(varints, length, decompressedData);
-    size_t ints_read = varint_decode_m1(varints, length, decompressedData);
+    size_t ints_read = varint_decode_scalar(varints, length, decompressedData);
     // size_t ints_read = varint_decode_scalar(compressedData, 16, decompressedData);
     // size_t ints_read = varint_decode_m1(compressedData, 16, decompressedData);
-
-    printf("ints processed = %ld\n", ints_read);
 
     // for (int i = 0; i < ints_read; i++)
     // {
