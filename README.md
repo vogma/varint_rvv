@@ -90,7 +90,7 @@ The benchmark tests different implementations against varying varint distributio
 | Mixed | 90% | 4% | 3% | 2% | 1% |
 | Diverse | 81% | 7% | 6% | 4% | 2% |
 
-Input sizes range from 1 KB to 4 MB, testing both cache-resident and memory-bound scenarios.
+Input sizes range from 1 KB to 4 MB.
 
 ### Sample Results
 
