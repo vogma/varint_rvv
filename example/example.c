@@ -30,7 +30,7 @@ int main(void)
 
     printf("length %ld \n", N);
 
-    size_t ints_read = varint_decode_vecshift(varints, length, decompressedData);
+    size_t ints_read = varint_decode_vecshift_m2(varints, length, decompressedData);
     // size_t ints_read = varint_decode_scalar(varints, length, decompressedData);
     // size_t ints_read = varint_decode_scalar(compressedData, 16, decompressedData);
     // size_t ints_read = varint_decode_m1(compressedData, 16, decompressedData);

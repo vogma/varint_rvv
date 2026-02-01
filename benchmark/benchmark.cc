@@ -14,6 +14,7 @@ extern "C"
     size_t varint_decode_scalar(const uint8_t *input, int length, uint32_t *output);
     size_t varint_decode(const uint8_t *input, size_t length, uint32_t *output);
     size_t varint_decode_vecshift(const uint8_t *input, size_t length, uint32_t *output);
+    size_t varint_decode_vecshift_m2(const uint8_t *input, size_t length, uint32_t *output);
     size_t varint_decode_m1(const uint8_t *input, size_t length, uint32_t *output);
     size_t varint_decode_m2(const uint8_t *input, size_t length, uint32_t *output);
     size_t varint_decode_masked_vbyte(const uint8_t *input, size_t length, uint32_t *output);
@@ -175,12 +176,26 @@ static void BM_decode(benchmark::State &state)
     //     double(total_ints), benchmark::Counter::kIsIterationInvariantRate, benchmark::Counter::kIs1000);
 }
 
+// BENCHMARK_TEMPLATE(BM_decode, varint_decode_masked_vbyte_opt,  99,1,0,0,0)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+// BENCHMARK_TEMPLATE(BM_decode, varint_decode_vecshift,  99,1,0,0,0)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+// BENCHMARK_TEMPLATE(BM_decode, varint_decode_vecshift_m2,  99,1,0,0,0)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+// BENCHMARK_TEMPLATE(BM_decode, varint_decode_m2,  99,1,0,0,0)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+// BENCHMARK_TEMPLATE(BM_decode, varint_decode_scalar,  99,1,0,0,0)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+
+
+// BENCHMARK_TEMPLATE(BM_decode, varint_decode_masked_vbyte_opt,  95,3,1,1,0)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+BENCHMARK_TEMPLATE(BM_decode, varint_decode_vecshift,  95,3,1,1,0)->RangeMultiplier(2)->Range(1 << 10, 1 << 22);
+// BENCHMARK_TEMPLATE(BM_decode, varint_decode_vecshift_m2,  95,3,1,1,1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+// BENCHMARK_TEMPLATE(BM_decode, varint_decode_m2,  95,3,1,1,1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+BENCHMARK_TEMPLATE(BM_decode, varint_decode_scalar,  95,3,1,1,0)->RangeMultiplier(2)->Range(1 << 10, 1 << 22);
+
 // Distribution: 95% 1-byte, 1% 2-byte, 1% 3-byte, 2% 4-byte, 1% 5-byte (small values)
 // BENCHMARK_TEMPLATE(BM_decode, varint_decode_m2, 85, 5, 5, 3, 2)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
 // BENCHMARK_TEMPLATE(BM_decode, varint_decode_m1, 85, 5, 5, 3, 2)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
-BENCHMARK_TEMPLATE(BM_decode, varint_decode_masked_vbyte_opt,  90,4,3,2,1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+// BENCHMARK_TEMPLATE(BM_decode, varint_decode_masked_vbyte_opt,  90,4,3,2,1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
 BENCHMARK_TEMPLATE(BM_decode, varint_decode_vecshift,  90,4,3,2,1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
-BENCHMARK_TEMPLATE(BM_decode, varint_decode_m2,  90,4,3,2,1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+// BENCHMARK_TEMPLATE(BM_decode, varint_decode_vecshift_m2,  90,4,3,2,1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+// BENCHMARK_TEMPLATE(BM_decode, varint_decode_m2,  90,4,3,2,1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
 BENCHMARK_TEMPLATE(BM_decode, varint_decode_scalar,    90,4,3,2,1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
 
 // Distribution: 20% each byte length (uniform)
@@ -189,9 +204,10 @@ BENCHMARK_TEMPLATE(BM_decode, varint_decode_scalar,    90,4,3,2,1)->RangeMultipl
 // BENCHMARK_TEMPLATE(BM_decode, varint_decode_masked_vbyte, 20, 20, 20, 20, 20)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
 
 // // Distribution: 50% 1-byte, 30% 2-byte, 15% 3-byte, 4% 4-byte, 1% 5-byte (mixed)
-BENCHMARK_TEMPLATE(BM_decode, varint_decode_masked_vbyte_opt, 81, 7, 6, 4, 2)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+// BENCHMARK_TEMPLATE(BM_decode, varint_decode_masked_vbyte_opt, 81, 7, 6, 4, 2)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
 BENCHMARK_TEMPLATE(BM_decode, varint_decode_vecshift,  81, 7, 6, 4, 2)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
-BENCHMARK_TEMPLATE(BM_decode, varint_decode_m2,  81, 7, 6, 4, 2)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+// BENCHMARK_TEMPLATE(BM_decode, varint_decode_vecshift_m2,  81, 7, 6, 4, 2)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+// BENCHMARK_TEMPLATE(BM_decode, varint_decode_m2,  81, 7, 6, 4, 2)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
 BENCHMARK_TEMPLATE(BM_decode, varint_decode_scalar,  81, 7, 6, 4, 2)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
 
 BENCHMARK_MAIN();

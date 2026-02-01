@@ -1,0 +1,25 @@
+--------------------------------------------------------------------------------------------------------------------------------------
+Benchmark                                                          Time             CPU   Iterations bytes_per_second items_per_second
+--------------------------------------------------------------------------------------------------------------------------------------
+BM_decode<varint_decode_vecshift, 95,3,1,1,0>/1024              2290 ns         2289 ns       305593      459.449Mi/s       447.262M/s
+BM_decode<varint_decode_vecshift, 95,3,1,1,0>/2048              4473 ns         4473 ns       156457      468.206Mi/s       457.862M/s
+BM_decode<varint_decode_vecshift, 95,3,1,1,0>/4096              8965 ns         8965 ns        78048      465.835Mi/s       456.896M/s
+BM_decode<varint_decode_vecshift, 95,3,1,1,0>/8192             18920 ns        18919 ns        36808      446.667Mi/s       433.003M/s
+BM_decode<varint_decode_vecshift, 95,3,1,1,0>/16384            38046 ns        38039 ns        18365      443.561Mi/s       430.721M/s
+BM_decode<varint_decode_vecshift, 95,3,1,1,0>/32768            84902 ns        84893 ns         8234      397.822Mi/s        385.99M/s
+BM_decode<varint_decode_vecshift, 95,3,1,1,0>/65536           206614 ns       206600 ns         3653      327.019Mi/s       317.212M/s
+BM_decode<varint_decode_vecshift, 95,3,1,1,0>/131072          441954 ns       441917 ns         1584      305.541Mi/s       296.598M/s
+BM_decode<varint_decode_vecshift, 95,3,1,1,0>/262144          919627 ns       919556 ns          792      293.888Mi/s       285.077M/s
+BM_decode<varint_decode_vecshift, 95,3,1,1,0>/524288         1761182 ns      1761050 ns          397      306.876Mi/s       297.713M/s
+BM_decode<varint_decode_vecshift, 95,3,1,1,0>/1048576        3496461 ns      3496083 ns          200      309.066Mi/s       299.929M/s
+BM_decode<varint_decode_scalar, 95,3,1,1,0>/1024                4316 ns         4316 ns       161867      243.737Mi/s       237.272M/s
+BM_decode<varint_decode_scalar, 95,3,1,1,0>/2048                8768 ns         8767 ns        79623      238.876Mi/s       233.599M/s
+BM_decode<varint_decode_scalar, 95,3,1,1,0>/4096               17982 ns        17981 ns        38913      232.253Mi/s       227.796M/s
+BM_decode<varint_decode_scalar, 95,3,1,1,0>/8192               38106 ns        38105 ns        18383      221.771Mi/s       214.987M/s
+BM_decode<varint_decode_scalar, 95,3,1,1,0>/16384              74925 ns        74923 ns         9347      225.196Mi/s       218.677M/s
+BM_decode<varint_decode_scalar, 95,3,1,1,0>/32768             151678 ns       151674 ns         4631      222.665Mi/s       216.043M/s
+BM_decode<varint_decode_scalar, 95,3,1,1,0>/65536             306883 ns       306875 ns         2278      220.161Mi/s       213.559M/s
+BM_decode<varint_decode_scalar, 95,3,1,1,0>/131072            629688 ns       629666 ns         1113      214.438Mi/s       208.161M/s
+BM_decode<varint_decode_scalar, 95,3,1,1,0>/262144           1271162 ns      1271120 ns          553      212.605Mi/s       206.231M/s
+BM_decode<varint_decode_scalar, 95,3,1,1,0>/524288           2540074 ns      2539977 ns          273      212.767Mi/s       206.414M/s
+BM_decode<varint_decode_scalar, 95,3,1,1,0>/1048576          5077432 ns      5077241 ns          138      212.816Mi/s       206.525M/s
