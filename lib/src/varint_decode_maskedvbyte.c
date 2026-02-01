@@ -12,12 +12,23 @@ static inline __attribute__((always_inline)) uint64_t create_mask(const vuint8m1
     return __riscv_vmv_x_s_u64m1_u64(mask_as_u64);
 }
 
+static inline __attribute__((always_inline)) uint64_t create_mask_m2(const vuint8m2_t varint_vec, const size_t vlmax_e8m2, const size_t length)
+{
+    vint8m2_t vec_i8 = __riscv_vreinterpret_v_u8m2_i8m2(varint_vec);
+
+    vbool4_t mask = __riscv_vmslt_vx_i8m2_b4(vec_i8, 0, vlmax_e8m2);
+
+    vuint32m1_t mask_as_u32 = __riscv_vreinterpret_v_b4_u32m1(mask);
+    vuint64m1_t mask_as_u64 = __riscv_vreinterpret_v_u32m1_u64m1(mask_as_u32);
+    return __riscv_vmv_x_s_u64m1_u64(mask_as_u64);
+}
+
 static inline __attribute__((always_inline)) uint64_t masked_vbyte_read_group(const vuint8m1_t in, uint32_t *out,
                                                                               uint64_t mask, uint64_t *ints_read, const size_t vlmax_e8m1)
 {
 
     // fast path, all 16 bytes contain separate integers < 128
-    if (!(mask & 0xFFFF))
+    if (__builtin_expect(!(mask & 0xFFFF), 1))
     {
         vuint32m4_t extended_result = __riscv_vzext_vf4_u32m4(in, vlmax_e8m1);
         __riscv_vse32_v_u32m4(out, extended_result, 16);
@@ -102,6 +113,51 @@ size_t varint_decode_masked_vbyte(const uint8_t *input, size_t length, uint32_t 
         input += consumed;
         output += ints_read;
         ints_processed += ints_read;
+    }
+    if (length > 0)
+    {
+        ints_processed += varint_decode_scalar(input, length, output);
+    }
+
+    return ints_processed;
+}
+
+size_t varint_decode_masked_vbyte_opt(const uint8_t *input, size_t length, uint32_t *output)
+{
+    const size_t vlmax_e8m2 = __riscv_vsetvlmax_e8m2();
+    uint64_t ints_read = 0;
+    uint64_t ints_processed = 0;
+    uint64_t consumed = 0;
+
+    while (length >= vlmax_e8m2)
+    {
+
+        vuint8m2_t varint_vec = __riscv_vle8_v_u8m2(input, vlmax_e8m2);
+        uint64_t mask = create_mask_m2(varint_vec, vlmax_e8m2, length);
+
+        size_t shifted = 0;
+
+        if (mask == 0xFFFFFFFFFFFFFFFF)
+        {
+            vuint32m8_t result = __riscv_vzext_vf4_u32m8(varint_vec, vlmax_e8m2);
+            __riscv_vse32_v_u32m8(output, result, vlmax_e8m2);
+            ints_read += vlmax_e8m2;
+            consumed += vlmax_e8m2;
+        }
+        else
+        {
+            while (shifted < (vlmax_e8m2 - 16))
+            {
+                uint64_t consumed = masked_vbyte_read_group(__riscv_vget_v_u8m2_u8m1(varint_vec, 0), output, mask, &ints_read, 16);
+                varint_vec = __riscv_vslidedown_vx_u8m2(varint_vec, consumed, vlmax_e8m2);
+                mask >>= consumed;
+                shifted += consumed;
+                length -= consumed;
+                input += consumed;
+                output += ints_read;
+                ints_processed += ints_read;
+            }
+        }
     }
     if (length > 0)
     {
