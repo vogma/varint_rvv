@@ -18,6 +18,7 @@ extern "C"
     size_t vbyte_encode(const uint32_t *in, size_t length, uint8_t *bout);
     size_t varint_decode(const uint8_t *input, size_t length, uint32_t *output);
     size_t varint_decode_vecshift(const uint8_t *input, size_t length, uint32_t *output);
+    size_t varint_decode_vecshift_u16(const uint8_t *input, size_t length, uint32_t *output);
     size_t varint_decode_vecshift_m2(const uint8_t *input, size_t length, uint32_t *output);
 
 #ifdef __cplusplus

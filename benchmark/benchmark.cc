@@ -14,6 +14,7 @@ extern "C"
     size_t varint_decode_scalar(const uint8_t *input, int length, uint32_t *output);
     size_t varint_decode(const uint8_t *input, size_t length, uint32_t *output);
     size_t varint_decode_vecshift(const uint8_t *input, size_t length, uint32_t *output);
+    size_t varint_decode_vecshift_u16(const uint8_t *input, size_t length, uint32_t *output);
     size_t varint_decode_vecshift_m2(const uint8_t *input, size_t length, uint32_t *output);
     size_t varint_decode_m1(const uint8_t *input, size_t length, uint32_t *output);
     size_t varint_decode_m2(const uint8_t *input, size_t length, uint32_t *output);
@@ -93,15 +94,15 @@ static Dataset make_dataset(size_t num_values, uint32_t seed,
     return ds;
 }
 
-class PerfCycleCounter
+class PerfCounter
 {
 public:
-    PerfCycleCounter()
+    PerfCounter(uint64_t event_type, uint64_t event_config)
     {
         struct perf_event_attr pe = {};
-        pe.type = PERF_TYPE_HARDWARE;
+        pe.type = event_type;
         pe.size = sizeof(pe);
-        pe.config = PERF_COUNT_HW_CPU_CYCLES;
+        pe.config = event_config;
         pe.disabled = 1;
         pe.exclude_kernel = 1;
         pe.exclude_hv = 1;
@@ -109,7 +110,7 @@ public:
         fd_ = syscall(SYS_perf_event_open, &pe, 0, -1, -1, 0);
     }
 
-    ~PerfCycleCounter()
+    ~PerfCounter()
     {
         if (fd_ >= 0)
             close(fd_);
@@ -148,66 +149,70 @@ static void BM_decode(benchmark::State &state)
     auto ds = make_dataset(num_values, 12345, P1, P2, P3, P4, P5);
 
     size_t total_ints = 0;
-    // uint64_t total_cycles = 0;
+    uint64_t total_instructions = 0;
 
-    // PerfCycleCounter perf;
+    PerfCounter insn_counter(PERF_TYPE_HARDWARE, PERF_COUNT_HW_INSTRUCTIONS);
 
+    insn_counter.start();
     for (auto _ : state)
     {
-        // perf.start();
         size_t n = DecoderFn(ds.input.data(), ds.input.size(), ds.output.data());
-        // total_cycles += perf.stop();
-
         total_ints += n;
 
         benchmark::DoNotOptimize(n);
         benchmark::DoNotOptimize(ds.output.data());
         benchmark::ClobberMemory();
     }
+    total_instructions = insn_counter.stop();
 
     state.SetBytesProcessed(int64_t(state.iterations()) * int64_t(ds.input.size()));
     state.SetItemsProcessed(int64_t(total_ints));
-    // if (perf.valid())
-    // {
-    //     state.counters["cycles/int"] = benchmark::Counter(
-    //         double(total_cycles) / double(total_ints), benchmark::Counter::kAvgThreads);
-    // }
-    // state.counters["M ints/s"] = benchmark::Counter(
-    //     double(total_ints), benchmark::Counter::kIsIterationInvariantRate, benchmark::Counter::kIs1000);
+
+    if (insn_counter.valid())
+    {
+        state.counters["insn/byte"] = benchmark::Counter(
+            double(total_instructions) / double(ds.input.size() * state.iterations()),
+            benchmark::Counter::kAvgThreads);
+        state.counters["insn/int"] = benchmark::Counter(
+            double(total_instructions) / double(total_ints),
+            benchmark::Counter::kAvgThreads);
+    }
 }
 
-// BENCHMARK_TEMPLATE(BM_decode, varint_decode_masked_vbyte_opt,  99,1,0,0,0)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
-// BENCHMARK_TEMPLATE(BM_decode, varint_decode_vecshift,  99,1,0,0,0)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
-// BENCHMARK_TEMPLATE(BM_decode, varint_decode_vecshift_m2,  99,1,0,0,0)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
-// BENCHMARK_TEMPLATE(BM_decode, varint_decode_m2,  99,1,0,0,0)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
-// BENCHMARK_TEMPLATE(BM_decode, varint_decode_scalar,  99,1,0,0,0)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+// BENCHMARK_TEMPLATE(BM_decode, varint_decode_masked_vbyte_opt,  ,1,0,0,0)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+// BENCHMARK_TEMPLATE(BM_decode, varint_decode_vecshift,  100,0,0,0,0)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+// // BENCHMARK_TEMPLATE(BM_decode, varint_decode_vecshift_m2,  99,1,0,0,0)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+// // BENCHMARK_TEMPLATE(BM_decode, varint_decode_m2,  99,1,0,0,0)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+// BENCHMARK_TEMPLATE(BM_decode, varint_decode_scalar,  100,0,0,0,0)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
 
-
-// BENCHMARK_TEMPLATE(BM_decode, varint_decode_masked_vbyte_opt,  95,3,1,1,0)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
-BENCHMARK_TEMPLATE(BM_decode, varint_decode_vecshift,  95,3,1,1,0)->RangeMultiplier(2)->Range(1 << 10, 1 << 22);
-// BENCHMARK_TEMPLATE(BM_decode, varint_decode_vecshift_m2,  95,3,1,1,1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
-// BENCHMARK_TEMPLATE(BM_decode, varint_decode_m2,  95,3,1,1,1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
-BENCHMARK_TEMPLATE(BM_decode, varint_decode_scalar,  95,3,1,1,0)->RangeMultiplier(2)->Range(1 << 10, 1 << 22);
-
-// Distribution: 95% 1-byte, 1% 2-byte, 1% 3-byte, 2% 4-byte, 1% 5-byte (small values)
-// BENCHMARK_TEMPLATE(BM_decode, varint_decode_m2, 85, 5, 5, 3, 2)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
-// BENCHMARK_TEMPLATE(BM_decode, varint_decode_m1, 85, 5, 5, 3, 2)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
-// BENCHMARK_TEMPLATE(BM_decode, varint_decode_masked_vbyte_opt,  90,4,3,2,1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
-BENCHMARK_TEMPLATE(BM_decode, varint_decode_vecshift,  90,4,3,2,1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
-// BENCHMARK_TEMPLATE(BM_decode, varint_decode_vecshift_m2,  90,4,3,2,1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
-// BENCHMARK_TEMPLATE(BM_decode, varint_decode_m2,  90,4,3,2,1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
-BENCHMARK_TEMPLATE(BM_decode, varint_decode_scalar,    90,4,3,2,1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+// // BENCHMARK_TEMPLATE(BM_decode, varint_decode_masked_vbyte_opt,  95,3,1,1,0)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+// BENCHMARK_TEMPLATE(BM_decode, varint_decode_vecshift,  95,3,1,1,0)->RangeMultiplier(2)->Range(1 << 10, 1 << 22);
+// // BENCHMARK_TEMPLATE(BM_decode, varint_decode_vecshift_m2,  95,3,1,1,1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+// // BENCHMARK_TEMPLATE(BM_decode, varint_decode_m2,  95,3,1,1,1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+// BENCHMARK_TEMPLATE(BM_decode, varint_decode_scalar,  95,3,1,1,0)->RangeMultiplier(2)->Range(1 << 10, 1 << 22);
 
 // Distribution: 20% each byte length (uniform)
-// BENCHMARK_TEMPLATE(BM_decode, varint_decode_scalar, 20, 20, 20, 20, 20)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
-// BENCHMARK_TEMPLATE(BM_decode, varint_decode_m1, 20, 20, 20, 20, 20)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
-// BENCHMARK_TEMPLATE(BM_decode, varint_decode_masked_vbyte, 20, 20, 20, 20, 20)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+BENCHMARK_TEMPLATE(BM_decode, varint_decode_masked_vbyte_opt, 20, 20, 20, 20, 20)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+BENCHMARK_TEMPLATE(BM_decode, varint_decode_scalar, 20, 20, 20, 20, 20)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+// BENCHMARK_TEMPLATE(BM_decode, varint_decode_vecshift, 20, 20, 20, 20, 20)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+BENCHMARK_TEMPLATE(BM_decode, varint_decode_vecshift_u16, 20, 20, 20, 20, 20)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
 
-// // Distribution: 50% 1-byte, 30% 2-byte, 15% 3-byte, 4% 4-byte, 1% 5-byte (mixed)
-// BENCHMARK_TEMPLATE(BM_decode, varint_decode_masked_vbyte_opt, 81, 7, 6, 4, 2)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
-BENCHMARK_TEMPLATE(BM_decode, varint_decode_vecshift,  81, 7, 6, 4, 2)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
-// BENCHMARK_TEMPLATE(BM_decode, varint_decode_vecshift_m2,  81, 7, 6, 4, 2)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
-// BENCHMARK_TEMPLATE(BM_decode, varint_decode_m2,  81, 7, 6, 4, 2)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
-BENCHMARK_TEMPLATE(BM_decode, varint_decode_scalar,  81, 7, 6, 4, 2)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+// Distribution: 90% 1-byte, 4% 2-byte, 3% 3-byte, 2% 4-byte, 1% 5-byte (small values)
+BENCHMARK_TEMPLATE(BM_decode, varint_decode_masked_vbyte_opt, 90, 4, 3, 2, 1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+// BENCHMARK_TEMPLATE(BM_decode, varint_decode_vecshift, 90, 4, 3, 2, 1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+BENCHMARK_TEMPLATE(BM_decode, varint_decode_vecshift_u16, 90, 4, 3, 2, 1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+BENCHMARK_TEMPLATE(BM_decode, varint_decode_scalar, 90, 4, 3, 2, 1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+
+// Distribution: 81% 1-byte, 7% 2-byte, 6% 3-byte, 5% 4-byte, 1% 5-byte (mixed)
+BENCHMARK_TEMPLATE(BM_decode, varint_decode_masked_vbyte_opt, 81, 7, 6, 5, 1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+// BENCHMARK_TEMPLATE(BM_decode, varint_decode_vecshift, 81, 7, 6, 5, 1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+BENCHMARK_TEMPLATE(BM_decode, varint_decode_vecshift_u16, 81, 7, 6, 5, 1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+BENCHMARK_TEMPLATE(BM_decode, varint_decode_scalar, 81, 7, 6, 5, 1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+
+// Distribution: 72% 1-byte, 13% 2-byte, 9% 3-byte, 5% 4-byte, 1% 5-byte (mixed)
+BENCHMARK_TEMPLATE(BM_decode, varint_decode_masked_vbyte_opt, 72, 13, 9, 5, 1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+// BENCHMARK_TEMPLATE(BM_decode, varint_decode_vecshift, 72, 13, 9, 5, 1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+BENCHMARK_TEMPLATE(BM_decode, varint_decode_vecshift_u16, 72, 13, 9, 5, 1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+BENCHMARK_TEMPLATE(BM_decode, varint_decode_scalar, 72, 13, 9, 5, 1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
 
 BENCHMARK_MAIN();
