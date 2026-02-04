@@ -28,7 +28,7 @@ static inline __attribute__((always_inline)) uint64_t masked_vbyte_read_group(co
 {
 
     // fast path, all 16 bytes contain separate integers < 128
-    if (__builtin_expect(!(mask & 0xFFFF), 1))
+    if (!(mask & 0xFFFF))
     {
         vuint32m4_t extended_result = __riscv_vzext_vf4_u32m4(in, vlmax_e8m1);
         __riscv_vse32_v_u32m4(out, extended_result, 16);

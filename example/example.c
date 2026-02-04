@@ -144,7 +144,7 @@ int main(void)
     printf("\n");
 
     /* Decode using varint_decode_vecshift_u16 */
-    size_t decoded_count = varint_decode_vecshift_u16(encoded_data, encoded_length, decoded_values);
+    size_t decoded_count = varint_decode_vecshift(encoded_data, encoded_length, decoded_values);
     printf("Decoded %zu integers from %zu bytes\n\n", decoded_count, encoded_length);
 
     /* Validate */

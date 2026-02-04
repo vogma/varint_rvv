@@ -353,17 +353,3 @@ size_t varint_decode_m1(const uint8_t *input, size_t length, uint32_t *output)
     }
     return processed;
 }
-
-size_t varint_decode(const uint8_t *input, size_t length, uint32_t *output)
-{
-    const size_t vlmax_e8m1 = __riscv_vsetvlmax_e8m1();
-
-    if (vlmax_e8m1 < 64)
-    {
-        return varint_decode_m2(input, length, output);
-    }
-    else
-    {
-        return varint_decode_m1(input, length, output);
-    }
-}

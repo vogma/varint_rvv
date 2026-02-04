@@ -85,9 +85,6 @@ size_t varint_decode_scalar(const uint8_t *input, int length, uint32_t *output)
     {
         // size_t bytes_processed = read_int(input, output);
         size_t bytes_processed = ReadVarint32FromArray(input, out);
-
-        // printf("length: %d out: %u\n", length, output);
-
         length -= bytes_processed;
         input += bytes_processed;
         out++;
