@@ -6,52 +6,49 @@ import numpy as np
 message_sizes = [1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144, 524288, 1048576]
 
 # Distribution 1: 20, 20, 20, 20, 20 (uniform)
-dist1_vecshift = [275.4, 275.327, 274.574, 274.007, 274.367, 274.172, 272.518, 268.899, 268.662, 268.039, 267.815]
-dist1_masked_vbyte = [199.313, 197.858, 188.903, 187.15, 186.948, 186.669, 182.767, 179.714, 179.67, 179.163, 178.551]
-dist1_scalar = [223.688, 213.63, 210.97, 205.69, 204.053, 203.993, 203.565, 203.657, 204.534, 204.78, 204.204]
+dist1_vecshift = [364.999, 364.989, 363.549, 362.576, 362.369, 361.451, 355.785, 350.92, 348.863, 347.385, 346.574]
+dist1_scalar = [208.728, 199.14, 196.662, 192.062, 190.929, 191.025, 189.39, 189.395, 190.367, 190.669, 190.345]
 
 # Distribution 2: 90, 4, 3, 2, 1 (heavily skewed to 1-byte)
-dist2_vecshift = [344.979, 344.414, 346.54, 337.712, 335.461, 318.737, 305.884, 263.452, 259.042, 256.614, 254.255]
-dist2_masked_vbyte = [248.655, 259.484, 233.718, 202.632, 203.492, 204.164, 204.011, 182.641, 164.146, 163.148, 161.957]
-dist2_scalar = [290.375, 265.458, 250.919, 231.623, 232.739, 233.222, 233.736, 230.86, 234.757, 235.225, 235.837]
+dist2_vecshift = [428.777, 422.526, 424.181, 419.926, 418.089, 378.157, 308.564, 298.234, 312.151, 323.213, 318.712]
+dist2_scalar = [248.252, 230.971, 218.193, 204.575, 205.738, 206.088, 208.35, 204.506, 206.488, 207.644, 207.399]
 
 # Distribution 3: 81, 7, 6, 5, 1 (mostly 1-byte)
-dist3_vecshift = [331.29, 326.029, 327.171, 324.718, 320.533, 304.617, 292.74, 261.324, 250.101, 245.382, 244.458]
-dist3_masked_vbyte = [203.489, 196.172, 181.526, 167.893, 166.694, 166.307, 166.003, 156.387, 155.67, 155.17, 154.059]
-dist3_scalar = [270.542, 230.279, 219.581, 208.166, 208.764, 207.86, 207.5, 208.521, 209.973, 209.961, 209.7]
+dist3_vecshift = [419.867, 416.521, 419.117, 416.611, 412.901, 367.514, 324.904, 311.347, 327.003, 330.441, 331.104]
+dist3_scalar = [230.589, 204.633, 195.64, 187.038, 187.482, 187.053, 187.123, 187.861, 188.324, 188.554, 188.195]
 
 # Distribution 4: 72, 13, 9, 5, 1 (moderate skew)
-dist4_vecshift = [325.423, 322.813, 326.614, 321.605, 319.619, 308.878, 298.36, 267.054, 257.097, 250.789, 246.288]
-dist4_masked_vbyte = [209.63, 203.41, 187.214, 172.367, 171.589, 170.419, 170.246, 158.745, 158.403, 157.943, 156.897]
-dist4_scalar = [240.217, 213.151, 200.265, 189.756, 189.603, 188.428, 187.563, 189.605, 189.74, 189.784, 189.233]
+dist4_vecshift = [417.946, 416.563, 420.422, 414.728, 412.518, 374.8, 347.055, 322.597, 334.768, 336.818, 334.601]
+dist4_scalar = [211.638, 190.3, 179.69, 171.484, 171.642, 170.886, 170.653, 171.581, 171.989, 171.955, 171.684]
 
 distributions = [
 
     {
         'name': 'Skewed 1-byte (90-4-3-2-1)',
         'vecshift': dist2_vecshift,
-        'masked_vbyte': dist2_masked_vbyte,
         'scalar': dist2_scalar,
     },
     {
         'name': 'Mostly 1-byte (81-7-6-5-1)',
         'vecshift': dist3_vecshift,
-        'masked_vbyte': dist3_masked_vbyte,
         'scalar': dist3_scalar,
     },
     {
         'name': 'Moderate skew (72-13-9-5-1)',
         'vecshift': dist4_vecshift,
-        'masked_vbyte': dist4_masked_vbyte,
         'scalar': dist4_scalar,
     },
         {
         'name': 'Uniform (20-20-20-20-20)',
         'vecshift': dist1_vecshift,
-        'masked_vbyte': dist1_masked_vbyte,
         'scalar': dist1_scalar,
     }
 ]
+
+max_y = max(
+    max(dist['vecshift'] + dist['scalar'])
+    for dist in distributions
+)
 
 def format_size(x, pos):
     if x >= 1048576:
@@ -71,19 +68,14 @@ for idx, dist in enumerate(distributions):
             label='varint_rvv', color='#2563eb', linewidth=1.5, markersize=4)
     ax.plot(message_sizes, dist['scalar'], 's-',
             label='scalar', color='#dc2626', linewidth=1.5, markersize=4)
-    # ax.plot(message_sizes, dist['masked_vbyte'], '^-',
-    #         label='masked_vbyte', color='#059669', linewidth=1.5, markersize=4)
-
     ax.set_xscale('log', base=2)
     ax.set_xlabel('Message Size (bytes)')
+    ax.set_ylim(0, 450)
     ax.set_ylabel('Throughput (MiB/s)')
     ax.set_title(dist['name'])
     ax.xaxis.set_major_formatter(plt.FuncFormatter(format_size))
     ax.grid(True, linestyle='--', alpha=0.3)
     ax.legend(loc='upper right', fontsize=8)
-
-    # Set consistent y-axis range across all plots
-    ax.set_ylim(100, 400)
 
 plt.suptitle('Varint Decoding Throughput by Distribution', fontsize=14, fontweight='bold')
 plt.tight_layout()
@@ -91,4 +83,62 @@ plt.savefig('varint_throughput_distributions.svg', format='svg', bbox_inches='ti
 plt.savefig('varint_throughput_distributions.pdf', format='pdf', bbox_inches='tight')
 plt.savefig('varint_throughput_distributions.png', format='png', dpi=150, bbox_inches='tight')
 print("Saved: varint_throughput_distributions.svg / .pdf / .png")
+
+# Grouped bar charts for the same four distributions
+bar_sizes = [1024, 8192, 16384, 32768, 131072, 262144, 524288]
+bar_indices = [message_sizes.index(size) for size in bar_sizes]
+
+def select_bar_values(values):
+    return [values[i] for i in bar_indices]
+
+fig, axes = plt.subplots(2, 2, figsize=(12, 6))
+axes = axes.flatten()
+x = np.arange(len(bar_sizes))
+bar_width = 0.32
+
+for idx, dist in enumerate(distributions):
+    ax = axes[idx]
+    scalar_values = select_bar_values(dist['scalar'])
+    vec_values = select_bar_values(dist['vecshift'])
+
+    scalar_bars = ax.bar(
+        x - bar_width / 2,
+        scalar_values,
+        width=bar_width,
+        label='Scalar',
+        facecolor='white',
+        edgecolor='black',
+        hatch='///',
+        linewidth=0.8,
+    )
+    vec_bars = ax.bar(
+        x + bar_width / 2,
+        vec_values,
+        width=bar_width,
+        label='Rvv',
+        facecolor='white',
+        edgecolor='black',
+        hatch='\\\\',
+        linewidth=0.8,
+    )
+
+    ax.bar_label(scalar_bars, fmt='%.1f', padding=2, rotation=90, fontsize=8)
+    ax.bar_label(vec_bars, fmt='%.1f', padding=2, rotation=90, fontsize=8)
+
+    ax.set_xlabel('Input buffer size')
+    ax.set_ylabel('Throughput (MiB/s)')
+    ax.set_title(dist['name'])
+    ax.set_xticks(x)
+    ax.set_xticklabels([format_size(s, None) for s in bar_sizes])
+    ax.grid(True, axis='y', linestyle='--', alpha=0.3, linewidth=0.5)
+    ax.set_ylim(0, 450)
+    ax.set_yticks(np.arange(0, 451, 100))
+    ax.legend(loc='upper right', fontsize=8, framealpha=0.8)
+
+plt.suptitle('Varint Decoding Throughput (Grouped Bars)', fontsize=14, fontweight='bold')
+plt.tight_layout()
+plt.savefig('varint_throughput_distributions_bar.svg', format='svg', bbox_inches='tight')
+plt.savefig('varint_throughput_distributions_bar.pdf', format='pdf', bbox_inches='tight')
+plt.savefig('varint_throughput_distributions_bar.png', format='png', dpi=150, bbox_inches='tight')
+print("Saved: varint_throughput_distributions_bar.svg / .pdf / .png")
 plt.show()

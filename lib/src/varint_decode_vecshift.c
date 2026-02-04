@@ -26,7 +26,7 @@ size_t varint_decode_vecshift(const uint8_t *data, size_t length, uint32_t *outp
         vbool8_t termination_mask = __riscv_vmsleu_vx_u8m1_b8(input, 0x7F, vl);
 
         // popcount on termination mask tells us number of complete varints in register, as bytes with termination bit set are at the last position in a varint.
-        uint8_t number_of_varints = __riscv_vcpop_m_b8(termination_mask, vl);
+        size_t number_of_varints = __riscv_vcpop_m_b8(termination_mask, vl);
 
         // fast path. No continuation bits (MSB==1) set
         if (number_of_varints == vl)
