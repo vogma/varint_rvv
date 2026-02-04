@@ -137,17 +137,20 @@ private:
 };
 
 template <auto DecoderFn, int P1, int P2, int P3, int P4, int P5>
-static void BM_decode(benchmark::State &state)
+static void BM(benchmark::State &state)
 {
     const size_t num_values = static_cast<size_t>(state.range(0));
     auto ds = make_dataset(num_values, 12345, P1, P2, P3, P4, P5);
 
     size_t total_ints = 0;
     uint64_t total_instructions = 0;
+    uint64_t total_cycles = 0;
 
     PerfCounter insn_counter(PERF_TYPE_HARDWARE, PERF_COUNT_HW_INSTRUCTIONS);
+    PerfCounter cycle_counter(PERF_TYPE_HARDWARE, PERF_COUNT_HW_CPU_CYCLES);
 
     insn_counter.start();
+    cycle_counter.start();
     for (auto _ : state)
     {
         size_t n = DecoderFn(ds.input.data(), ds.input.size(), ds.output.data());
@@ -158,9 +161,10 @@ static void BM_decode(benchmark::State &state)
         benchmark::ClobberMemory();
     }
     total_instructions = insn_counter.stop();
+    total_cycles = cycle_counter.stop();
 
     state.SetBytesProcessed(int64_t(state.iterations()) * int64_t(ds.input.size()));
-    state.SetItemsProcessed(int64_t(total_ints));
+    // state.SetItemsProcessed(int64_t(total_ints));
 
     if (insn_counter.valid())
     {
@@ -171,40 +175,31 @@ static void BM_decode(benchmark::State &state)
             double(total_instructions) / double(total_ints),
             benchmark::Counter::kAvgThreads);
     }
+
+    if (cycle_counter.valid() && total_cycles > 0)
+    {
+        state.counters["bytes/cycle"] = benchmark::Counter(
+            double(ds.input.size() * state.iterations()) / double(total_cycles),
+            benchmark::Counter::kAvgThreads);
+    }
 }
 
-// BENCHMARK_TEMPLATE(BM_decode, varint_clang, 100, 0, 0, 0, 0)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
-// BENCHMARK_TEMPLATE(BM_decode, varint_rvv, 100, 0, 0, 0, 0)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
-// BENCHMARK_TEMPLATE(BM_decode, varint_decode_scalar, 100, 0, 0, 0, 0)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
-// BENCHMARK_TEMPLATE(BM_decode, varint_combined, 100, 0, 0, 0, 0)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+BENCHMARK_TEMPLATE(BM, varint_rvv, 100, 0, 0, 0, 0)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+BENCHMARK_TEMPLATE(BM, varint_decode_scalar, 100, 0, 0, 0, 0)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
 
-// BENCHMARK_TEMPLATE(BM_decode, varint_clang,  95,3,1,1,0)->RangeMultiplier(2)->Range(1 << 10, 1 << 22);
-// BENCHMARK_TEMPLATE(BM_decode, varint_rvv, 95, 3, 1, 1, 0)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
-// BENCHMARK_TEMPLATE(BM_decode, varint_decode_scalar, 95, 3, 1, 1, 0)->RangeMultiplier(2)->Range(1 << 10, 1 << 22);
-// BENCHMARK_TEMPLATE(BM_decode, varint_combined,  95,3,1,1,0)->RangeMultiplier(2)->Range(1 << 10, 1 << 22);
-
-// Distribution: 20% each byte length (uniform)
-// BENCHMARK_TEMPLATE(BM_decode, varint_clang, 20, 20, 20, 20, 20)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
-BENCHMARK_TEMPLATE(BM_decode, varint_rvv, 20, 20, 20, 20, 20)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
-BENCHMARK_TEMPLATE(BM_decode, varint_decode_scalar, 20, 20, 20, 20, 20)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
-// BENCHMARK_TEMPLATE(BM_decode, varint_combined, 20, 20, 20, 20, 20)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+BENCHMARK_TEMPLATE(BM, varint_rvv, 20, 20, 20, 20, 20)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+BENCHMARK_TEMPLATE(BM, varint_decode_scalar, 20, 20, 20, 20, 20)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
 
 // Distribution: 90% 1-byte, 4% 2-byte, 3% 3-byte, 2% 4-byte, 1% 5-byte (small values)
-// BENCHMARK_TEMPLATE(BM_decode, varint_clang, 90, 4, 3, 2, 1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
-BENCHMARK_TEMPLATE(BM_decode, varint_rvv, 90, 4, 3, 2, 1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
-BENCHMARK_TEMPLATE(BM_decode, varint_decode_scalar, 90, 4, 3, 2, 1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
-// BENCHMARK_TEMPLATE(BM_decode, varint_combined, 90, 4, 3, 2, 1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+BENCHMARK_TEMPLATE(BM, varint_rvv, 90, 4, 3, 2, 1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+BENCHMARK_TEMPLATE(BM, varint_decode_scalar, 90, 4, 3, 2, 1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
 
 // Distribution: 81% 1-byte, 7% 2-byte, 6% 3-byte, 5% 4-byte, 1% 5-byte (mixed)
-// BENCHMARK_TEMPLATE(BM_decode, varint_clang, 81, 7, 6, 5, 1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
-BENCHMARK_TEMPLATE(BM_decode, varint_rvv, 81, 7, 6, 5, 1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
-BENCHMARK_TEMPLATE(BM_decode, varint_decode_scalar, 81, 7, 6, 5, 1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
-// BENCHMARK_TEMPLATE(BM_decode, varint_combined, 81, 7, 6, 5, 1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+BENCHMARK_TEMPLATE(BM, varint_rvv, 81, 7, 6, 5, 1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+BENCHMARK_TEMPLATE(BM, varint_decode_scalar, 81, 7, 6, 5, 1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
 
 // Distribution: 72% 1-byte, 13% 2-byte, 9% 3-byte, 5% 4-byte, 1% 5-byte (mixed)
-// BENCHMARK_TEMPLATE(BM_decode, varint_clang, 72, 13, 9, 5, 1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
-BENCHMARK_TEMPLATE(BM_decode, varint_rvv, 72, 13, 9, 5, 1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
-BENCHMARK_TEMPLATE(BM_decode, varint_decode_scalar, 72, 13, 9, 5, 1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
-// BENCHMARK_TEMPLATE(BM_decode, varint_combined, 72, 13, 9, 5, 1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+BENCHMARK_TEMPLATE(BM, varint_rvv, 72, 13, 9, 5, 1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
+BENCHMARK_TEMPLATE(BM, varint_decode_scalar, 72, 13, 9, 5, 1)->RangeMultiplier(2)->Range(1 << 10, 1 << 20);
 
 BENCHMARK_MAIN();
