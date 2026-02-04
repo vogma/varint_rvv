@@ -125,7 +125,9 @@ public:
         if (fd_ >= 0)
         {
             ioctl(fd_, PERF_EVENT_IOC_DISABLE, 0);
-            read(fd_, &count, sizeof(count));
+            const ssize_t bytes_read = read(fd_, &count, sizeof(count));
+            if (bytes_read != static_cast<ssize_t>(sizeof(count)))
+                count = 0;
         }
         return count;
     }
