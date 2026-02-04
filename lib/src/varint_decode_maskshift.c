@@ -249,7 +249,7 @@ size_t varint_decode_m1(const uint8_t *input, size_t length, uint32_t *output)
     {
         vl = __riscv_vsetvl_e8m1(length);
 
-        vuint8m1_t data_vec_u8 = __riscv_vle8_v_u8m1((int8_t *)input, vl);
+        vuint8m1_t data_vec_u8 = __riscv_vle8_v_u8m1(input, vl);
         // vuint8m1_t data_vec_u8 = __riscv_vreinterpret_v_i8m1_u8m1(data_vec);
 
         vbool8_t inverted_mask = __riscv_vmsge_vx_i8m1_b8(__riscv_vreinterpret_v_u8m1_i8m1(data_vec_u8), 0, vl);

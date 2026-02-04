@@ -14,7 +14,7 @@ size_t varint_decode_vecshift(const uint8_t *data, size_t length, uint32_t *outp
 {
     size_t processed = 0;
 
-    size_t vl, vl2;
+    size_t vl;
 
     while (length > 0)
     {
@@ -133,7 +133,7 @@ size_t varint_decode_vecshift_m2(const uint8_t *input, size_t length, uint32_t *
     {
         vl = __riscv_vsetvl_e8m2(length);
 
-        vuint8m2_t data_vec_u8 = __riscv_vle8_v_u8m2((int8_t *)input, vl);
+        vuint8m2_t data_vec_u8 = __riscv_vle8_v_u8m2(input, vl);
 
         vbool4_t termination_mask = __riscv_vmsge_vx_i8m2_b4(__riscv_vreinterpret_v_u8m2_i8m2(data_vec_u8), 0, vl);
 

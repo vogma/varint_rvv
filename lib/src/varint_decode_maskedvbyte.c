@@ -98,10 +98,9 @@ static inline __attribute__((always_inline)) uint64_t masked_vbyte_read_group(co
 
 size_t varint_decode_masked_vbyte(const uint8_t *input, size_t length, uint32_t *output)
 {
-    const size_t vlmax_e8m1 = 16; //__riscv_vsetvlmax_e8m1();
+    const size_t vlmax_e8m1 = 16;
     uint64_t ints_read = 0;
     uint64_t ints_processed = 0;
-    uint64_t consumed = 0;
 
     while (length >= 16)
     {
@@ -122,47 +121,3 @@ size_t varint_decode_masked_vbyte(const uint8_t *input, size_t length, uint32_t 
     return ints_processed;
 }
 
-size_t varint_decode_masked_vbyte_opt(const uint8_t *input, size_t length, uint32_t *output)
-{
-    const size_t vlmax_e8m2 = __riscv_vsetvlmax_e8m2();
-    uint64_t ints_read = 0;
-    uint64_t ints_processed = 0;
-    uint64_t consumed = 0;
-
-    while (length >= vlmax_e8m2)
-    {
-
-        vuint8m2_t varint_vec = __riscv_vle8_v_u8m2(input, vlmax_e8m2);
-        uint64_t mask = create_mask_m2(varint_vec, vlmax_e8m2, length);
-
-        size_t shifted = 0;
-
-        if (mask == 0xFFFFFFFFFFFFFFFF)
-        {
-            vuint32m8_t result = __riscv_vzext_vf4_u32m8(varint_vec, vlmax_e8m2);
-            __riscv_vse32_v_u32m8(output, result, vlmax_e8m2);
-            ints_read += vlmax_e8m2;
-            consumed += vlmax_e8m2;
-        }
-        else
-        {
-            while (shifted < (vlmax_e8m2 - 16))
-            {
-                uint64_t consumed = masked_vbyte_read_group(__riscv_vget_v_u8m2_u8m1(varint_vec, 0), output, mask, &ints_read, 16);
-                varint_vec = __riscv_vslidedown_vx_u8m2(varint_vec, consumed, vlmax_e8m2);
-                mask >>= consumed;
-                shifted += consumed;
-                length -= consumed;
-                input += consumed;
-                output += ints_read;
-                ints_processed += ints_read;
-            }
-        }
-    }
-    if (length > 0)
-    {
-        ints_processed += varint_decode_scalar(input, length, output);
-    }
-
-    return ints_processed;
-}
