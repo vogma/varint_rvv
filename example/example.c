@@ -4,8 +4,11 @@
 #include <stdlib.h>
 
 /* Simple PRNG */
-typedef struct { uint64_t x, y, z; } URand;
-static URand randState = { 123, 456, 789 };
+typedef struct
+{
+    uint64_t x, y, z;
+} URand;
+static URand randState = {123, 456, 789};
 
 static uint64_t urand(URand *r)
 {
@@ -70,7 +73,7 @@ static size_t get_varint_length(const uint8_t *p, const uint8_t *end)
     while (p < end && len < 5)
     {
         len++;
-        if (!(*p & 0x80))  /* no continuation bit = last byte */
+        if (!(*p & 0x80)) /* no continuation bit = last byte */
             return len;
         p++;
     }
@@ -80,15 +83,15 @@ static size_t get_varint_length(const uint8_t *p, const uint8_t *end)
 int main(void)
 {
     /* Configuration */
-    const size_t N = 1000;  /* number of integers to test */
-    const int weights[5] = {20, 20, 20, 20, 20};  /* even distribution: 20% each */
+    const size_t N = 1000;                   /* number of integers to test */
+    const int weights[5] = {85, 5, 4, 3, 3}; /* even distribution: 20% each */
 
     printf("Varint Decode Test with Even Distribution\n");
     printf("==========================================\n\n");
 
     /* Allocate buffers */
     uint32_t *original_values = malloc(N * sizeof(uint32_t));
-    uint8_t *encoded_data = malloc(N * 5);  /* max 5 bytes per varint */
+    uint8_t *encoded_data = malloc(N * 5); /* max 5 bytes per varint */
     uint32_t *decoded_values = malloc(N * sizeof(uint32_t));
 
     if (!original_values || !encoded_data || !decoded_values)
@@ -144,7 +147,7 @@ int main(void)
     printf("\n");
 
     /* Decode using varint_decode_asm */
-    size_t decoded_count = varint_rvv(encoded_data, encoded_length, decoded_values);
+    size_t decoded_count = varint_decode_vecshift(encoded_data, encoded_length, decoded_values);
     printf("Decoded %zu integers from %zu bytes\n\n", decoded_count, encoded_length);
 
     /* Validate */
