@@ -22,6 +22,7 @@ include_directories(${PROJECT_SOURCE_DIR}/lib/include)
 set(SOURCE_FILES 
     ${PROJECT_SOURCE_DIR}/lib/src/varint_encode.c
     ${PROJECT_SOURCE_DIR}/lib/src/varint_decode_scalar.c
+    ${PROJECT_SOURCE_DIR}/lib/src/varint_decode_vecshift.c
     ${PROJECT_SOURCE_DIR}/lib/src/varint_rvv.S
     )
 
