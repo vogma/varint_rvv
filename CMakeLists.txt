@@ -1,8 +1,7 @@
 cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
 project(varintrvv VERSION 0.1 LANGUAGES C CXX ASM)
 
-set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build.")
-set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build.")
+set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "Do not build shared libraries")
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
