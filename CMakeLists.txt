@@ -11,7 +11,7 @@ set(BENCHMARK_ENABLE_GTEST_TESTS OFF CACHE BOOL "Disable Benchmark's GTest tests
 set(BUILD_EXAMPLE CACHE BOOL OFF)
 set(BUILD_BENCHMARK CACHE BOOL OFF)
 
-set(ARCH "-march=rv64gcv")
+set(ARCH "-march=rv64gcv" CACHE STRING "RISC-V architecture flags")
 add_compile_options(${ARCH} -O3)
 
 add_subdirectory(submodules/google-benchmark)
