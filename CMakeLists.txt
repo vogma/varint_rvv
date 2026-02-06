@@ -11,8 +11,6 @@ set(BENCHMARK_ENABLE_GTEST_TESTS OFF CACHE BOOL "Disable Benchmark's GTest tests
 set(BUILD_EXAMPLE CACHE BOOL OFF)
 set(BUILD_BENCHMARK CACHE BOOL OFF)
 
-add_compile_options(-march=rv64gcv_zba_zbb_zbc_zbs_zkt_zfh_zcd_zca -mabi=lp64d -O3 -static -Wall -Werror)
-
 add_subdirectory(submodules/google-benchmark)
 
 # Add include directories
@@ -22,7 +20,7 @@ include_directories(${PROJECT_SOURCE_DIR}/lib/include)
 set(SOURCE_FILES 
     ${PROJECT_SOURCE_DIR}/lib/src/varint_encode.c
     ${PROJECT_SOURCE_DIR}/lib/src/varint_decode_scalar.c
-    ${PROJECT_SOURCE_DIR}/lib/src/varint_decode_vecshift.c
+    # ${PROJECT_SOURCE_DIR}/lib/src/varint_decode_vecshift.c
     ${PROJECT_SOURCE_DIR}/lib/src/varint_rvv.S
     )
 

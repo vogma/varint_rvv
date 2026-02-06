@@ -120,7 +120,7 @@ size_t varint_decode_vecshift(const uint8_t *data, size_t length, uint32_t *outp
     return processed;
 }
 
-size_t varint_decode_vecshift_test_m2(const uint8_t *data, size_t length, uint32_t *output)
+size_t varint_decode_vecshift_m2(const uint8_t *data, size_t length, uint32_t *output)
 {
     size_t processed = 0;
 
