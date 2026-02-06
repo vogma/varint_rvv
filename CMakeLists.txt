@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
 project(varintrvv VERSION 0.1 LANGUAGES C CXX ASM)
 
 set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build.")
+set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build.")
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "Do not build shared libraries")
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
@@ -11,8 +12,8 @@ set(BENCHMARK_ENABLE_GTEST_TESTS OFF CACHE BOOL "Disable Benchmark's GTest tests
 set(BUILD_EXAMPLE CACHE BOOL OFF)
 set(BUILD_BENCHMARK CACHE BOOL OFF)
 
-set(ARCH "-march=rv64gcv" CACHE STRING "RISC-V architecture flags")
-add_compile_options(${ARCH} -O3)
+set(ARCH "rv64gcv" CACHE STRING "architecture flag")
+add_compile_options(-march=${ARCH} -O3)
 
 add_subdirectory(submodules/google-benchmark)
 
@@ -23,7 +24,6 @@ include_directories(${PROJECT_SOURCE_DIR}/lib/include)
 set(SOURCE_FILES 
     ${PROJECT_SOURCE_DIR}/lib/src/varint_encode.c
     ${PROJECT_SOURCE_DIR}/lib/src/varint_decode_scalar.c
-    # ${PROJECT_SOURCE_DIR}/lib/src/varint_decode_vecshift.c
     ${PROJECT_SOURCE_DIR}/lib/src/varint_rvv.S
     )
 
