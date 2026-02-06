@@ -105,6 +105,11 @@ Benchmark results on RISC-V hardware with RVV support:
 
 *Results for heavily skewed distribution (95% single-byte varints)*
 
+### Benchmark results on Spacemit X60 (BananaPi-F3)
+
+<img width="1784" height="1181" alt="varint_throughput_distributions_bar" src="https://github.com/user-attachments/assets/65c5d84e-2012-4a9f-ba33-35b170e81542" />
+
+
 ## Project Structure
 
 ```
@@ -147,3 +152,8 @@ Each byte uses 7 bits for data (LSB first) and the MSB as a continuation flag (1
 - [RISC-V Vector Extension Specification](https://github.com/riscv/riscv-v-spec)
 - [Protocol Buffers Encoding](https://developers.google.com/protocol-buffers/docs/encoding)
 - [Masked VByte Paper](https://arxiv.org/abs/1503.07387)
+
+
+
+
+
